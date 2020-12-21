@@ -164,6 +164,7 @@ class ProductCart(models.Model):
 
 
 class Cart(models.Model):
+    """Корзина продуктов"""
     owner = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='cart_list')
     products = models.ManyToManyField(Product, through='ProductCart')
     created_at = models.DateTimeField(auto_now=True)
