@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %} Регистрация {% endblock %}
+{% block content %}
+
+<h1 class="mt-5" align="center">Регистрация</h1>
+<form method="post" action="/accounts/register/" class="container mt-5">
+{% csrf_token %}
+    <div class="row">
+        <div class="col-6">
+            <table>
+                <tr>
+                    <td>{{ form.username.label_tag }}</td>
+
+                    <td>{{ form.username }} {% if form.username.errors %}{{ form.username.errors }}{% endif %}</td>
+                </tr>
+
+                <tr>
+                    <td>{{ form.phone.label_tag }}</td>
+                    <td>{{ form.phone }} {% if form.phone.errors %}{{ form.phone.errors }}{% endif %}</td>
+                </tr>
+                <tr>
+                    <td>{{ form.first_name.label_tag }}</td>
+                    <td>{{ form.first_name }} {% if form.first_name.errors %}{{ form.first_name.errors }}{% endif %}</td>
+                </tr>
+                <tr>
+                    <td>{{ form.email.label_tag }}</td>
+                    <td>{{ form.email }} {% if form.email.errors %}{{ form.email.errors }}{% endif %}</td>
+                </tr>
+                <tr>
+                    <td>{{ form.last_name.label_tag }}</td>
+                    <td>{{ form.last_name }} {% if form.last_name.errors %}{{ form.last_name.errors }}{% endif %}</td>
+                </tr>
+                <tr>
+                    <td>{{ form.password.label_tag }}</td>
+                    <td>{{ form.password }} {% if form.password.errors %}{{ form.password.errors }}{% endif %}</td>
+                </tr>
+                <tr>
+                    <td>{{ form.password1.label_tag }}</td>
+                    <td>{{ form.password1 }} {% if form.password1.errors %}{{ form.password1.errors }}{% endif %}</td>
+                </tr>
+            </table>
+            <input type="submit" value="Зарегистрироваться" class="mt-1">
+        </div>
+        <div class="col-6">
+            <img src="/media/xtra/user-image.webp" alt="Wsports" height="230px"/>
+        </div>
+    </div>
+</form>
+
+
+{% endblock %}

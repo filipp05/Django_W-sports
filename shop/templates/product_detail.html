@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %} {{ product }} {% endblock %}
+
+
+
+{% block content %}
+
+<style>
+    .tag {
+        color: blue;
+    }
+
+    .ocount {
+        color: red;
+    }
+
+<!--    .buttonn {-->
+<!--        background: white-->
+<!--        a.button: hover { background: rgb(80, 80, 80); }-->
+<!--        a.button: active { background: rgb(0, 0, 0); }-->
+<!--    }-->
+</style>
+
+
+<div class="container mt-5">
+    <div class="row"><h1>{{ product.name }}</h1></div>
+    <div class="row">
+        <div class="col">
+            <div class="row">
+                <div class="col"><img src="{{ product.photo.url }}" alt="{{ product }}"/></div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <div class="row my-5">
+                        {% for image in product.images.all %}
+                            {% if forloop.counter0|divisibleby:"2" %}
+                            </div><div class="row my-5">
+                            {% endif %}
+                            <div class="card col-3 m-auto" style="width: 18rem;">
+                                <img src="{{ image.photo.url }}" class="card-img-top" alt="{{ product }}" width="70px" height="100px"/>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="row">
+                <div class="col">
+                    <b><p>{{ product.brand }}</p></b>
+                    <p>{{ product.description }}</p>
+                    <p><b>{{ product.price }} <sup>руб</sup></b>
+                        {% if product.count %}
+                            {% if product.count == 0 %}
+                                <div class="ocount">нет в наличии</div>
+                            {% else %}
+                                <div>{{ product.count }} шт.</div>
+                            {% endif %}</p>
+                        {% endif %}
+                    {% for tag in product.tags.all %}
+                        <p class="tag">#{{ tag }}</p>
+                    {% endfor %}
+                    <a href="{% url 'Wsports:add_to_cart_url' product_id=product.id %}"><button class="btn btn-primary">Добавить</button></a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <h2 align="center">К этому товару мы рекомендуем:</h2>
+    {% for product in product.recommendations.all %}
+        {% if forloop.counter0|divisibleby:"3" %}
+        </div><div class="row my-5">
+        {% endif %}
+        <div class="card col-3 m-auto" style="width: 18rem;">
+            <a href="{% url 'Wsports:product_url' product_name=product.name %}" class="btn btn-primary detail-btn"
+               style="background-color: white; border: none;">
+                <img src="{{ product.photo.url }}" class="card-img-top" alt="{{ product }}" width="70px" height="100px"/>
+                <div class="card-body">
+                    <h3 class="card-title" style="color: black;">{{ product.name|truncatewords:5 }}</h3>
+                </div>
+            </a>
+        </div>
+    {% endfor %}
+
+</div>
+<h2 align="center">"С этими товарами чаще всего покупают:"</h2>
+{% for product in most_favourite_products %}
+    {% for product in product.recommendations.all %}
+        {% if forloop.counter0|divisibleby:"3" %}
+        </div><div class="row my-5">
+        {% endif %}
+        <div class="card col-3 m-auto" style="width: 18rem;">
+            <a href="{% url 'Wsports:product_url' product_name=product.name %}" class="btn btn-primary detail-btn"
+               style="background-color: white; border: none;">
+                <img src="{{ product.photo.url }}" class="card-img-top" alt="{{ product }}" width="70px" height="100px"/>
+                <div class="card-body">
+                    <h3 class="card-title" style="color: black;">{{ product.name|truncatewords:5 }}</h3>
+                </div>
+            </a>
+        </div>
+</div>
+    {% endfor %}
+{% endfor %}
+{% endblock %}

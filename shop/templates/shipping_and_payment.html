@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %} Оформление заказа {% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <form action="/shipping_and_payment/" method="post">
+            {% csrf_token %}
+            <h2>Выберите способ доставки</h2>
+            {{ checkout_form.pk }}
+            {{ checkout_form.shipping_method }}
+            <h2>Укажите адрес доставки</h2>
+            <p>Выберите адрес из ранее использовавшихся или введите новый</p>
+            {% for address in address_list %}
+            <div class="mb-2">
+                <input type="radio" name="existing_address" value="{{ address.id }}">
+                {{ address }}
+            </div>
+            {% endfor %}
+            <input type="radio" name="new_address" value="1" class="mb-3"> Использовать новый:
+            <div class="ml-5">
+                <table>
+                    <tr>
+                        <td>{{ address_form.city.label_tag }}</td>
+
+                        <td>{{ address_form.city }}
+                            {% if form.city.errors %}
+                                {{ address_form.city.errors }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ address_form.street.label_tag }}</td>
+
+                        <td>{{ address_form.street }}
+                            {% if form.street.errors %}
+                                {{ address_form.street.errors }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ address_form.house.label_tag }}</td>
+
+                        <td>{{ address_form.house }}
+                            {% if form.house.errors %}
+                                {{ address_form.house.errors }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ address_form.flat.label_tag }}</td>
+                        <td>{{ address_form.flat }}
+                            {% if form.flat.errors %}
+                                {{ address_form.flat.errors }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ address_form.contact.label_tag }}</td>
+
+                        <td>{{ address_form.contact }}
+                            {% if form.contact.errors %}
+                                {{ address_form.contact.errors }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ address_form.extra_phone.label_tag }}</td>
+                        <td>{{ address_form.extra_phone }}
+                            {% if form.extra_phone.errors %}
+                                {{ address_form.extra_phone.errors }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+            <h2>Выберите способ оплаты</h2>
+            {{ checkout_form.payment_method }}
+            <input type="submit" value="Далее">
+        </form>
+    </div>
+{% endblock %}
+

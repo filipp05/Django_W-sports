@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %} Приобретение {% endblock %}
+
+{% block content %}
+    {% if cart.payment_method.name == "Наличные" %}
+        <div align="center" class="mt-5">
+            <h1>Спасибо за покупку!</h1>
+            <p>Ваш заказ #{{ cart.id }}. Ожидайте информации от менеджера нашего магазина</p>
+            <div class="row">
+                <div class="col-6">
+                    <a href="/" style="color: black;">Вернуться на главную</a>
+                </div>
+                <div class="col-6">
+                    <a href="#" style="color: black;">В историю заказов</a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if cart.payment_method.name == 'Банковская карта' %}
+        <div align="center" class="mt-5">
+            <h1>Оплата заказа #{{ cart.id }}</h1>
+            <div class="row">
+                <div class="col-3">
+                    Сумма заказа: {{ cart.get_total_amount }}
+                </div>
+                <div class="col-3">
+                    <a href="{% url 'Wsports:payment_url' id=cart.id %}">Оплатить</a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

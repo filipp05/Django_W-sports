@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %} Проверка деталей заказа {% endblock %}
+
+{% block content %}
+    <h1 align="center" class="mt-5">Проверьте детали заказа</h1>
+     <div class="container mt-4">
+        <div class="row">
+            <div class="col-3">
+                Товар
+            </div>
+            <div class="col-3">
+                Цена, рубли
+            </div>
+            <div class="col-3">
+                Количество
+            </div>
+            <div class="col-3">
+                Стоимость, рубли
+            </div>
+        </div>
+         <hr>
+        {% for product in product_set %}
+            <div class="row mt-2">
+                <div class="col-3">
+                    {{ product.name|truncatewords:5 }}
+                </div>
+                <div class="col-3">
+                    {{ product.price }}
+                </div>
+                <div class="col-3">
+                    {{ product.ordered_count }}
+                </div>
+                <div class="col-3">
+                    {{ product.amount }}
+                </div>
+            </div>
+        {% endfor %}
+         <hr>
+         <p class="mt-2">К оплате: {{ cart.get_total_amount }} руб.</p>
+         <p>Способ оплаты: {{ payment_method }}</p>
+         <p>Доставка: {{ shipping_method }}{% if address %}, {{ address.city }}, {{ address.street }}, Дом {{ address.house }}, Кв. {{ address.flat }}, {{ address.contact }}{% endif %}</p>
+<!--         <a href="{% url 'Wsports:purchase_url' id=cart.id %}">Оплатить</a>-->
+         <a href="{{ payment_url }}">Оплатить</a>
+     </div>
+{% endblock %}
+
+

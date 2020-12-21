@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+    <style>
+        .brand {
+            font-style: italic;
+            font-size: 25px;
+        }
+    </style>
+{% block title %}
+    {{ current_brand }}
+{% endblock %}
+
+{% block content %}
+<div align="center" class="mt-5">
+    <img src="{{ current_brand.photo.url }}" alt="hello" width="300px" height="150px" class="mb-5 mx-auto"/>
+    <div class="container">
+        <h1>{{ current_brand }}</h1>
+        <p>{{ current_brand.description }}</p>
+        <p>Доступные категории: </p>
+        <ul class="list-group">
+        {% for product in brand_product_list %}
+            <li class="list-group-item">{{ product.category }}</li>
+        {% endfor %}
+        </ul>
+        {% include 'product_list.html' %}
+    </div>
+</div>
+{% endblock %}

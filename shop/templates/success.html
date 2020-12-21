@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %} Спасибо за покупку {% endblock %}
+
+{% block content %}
+<div align="center" class="mt-5">
+    {% if error %}
+        <p>{{ error }}</p>
+    {% else %}
+        <h1>Спасибо за покупку!</h1>
+        <p>Ваш заказ #{{ cart.id }}. Ожидайте информации от менеджера нашего магазина</p>
+        <div class="row">
+            <div class="col-6">
+                <a href="/" style="color: black;">Вернуться на главную</a>
+            </div>
+            <div class="col-6">
+                <a href="{% url 'Wsports:profile' %}" style="color: black;">В историю заказов</a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+<!--посмотретб tabs бутстрапа для профиля-->

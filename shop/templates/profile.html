@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %} Профиль - {{ user.first_name }} {{ user.last_name }} {% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+<!--        <h2 align="center">Личная Информация</h2>-->
+<!--        <p>Имя: {{ user.first_name }}</p>-->
+<!--        <p>Фамилия: {{ user.last_name }}</p>-->
+<!--        <p>Телефон: {{ user.phone }}</p>-->
+<!--        <p>Почта: {{ user.email }}</p>-->
+<!--        <h2 align="center">Адреса</h2>-->
+<!--        <ul>-->
+<!--            {% for address in user.address_set.all %}-->
+<!--                <li>-->
+<!--                    {{ address.city }}, {{ address.street }}, д. {{ address.house }}, кв/оф {{ address.flat }}-->
+<!--                </li>-->
+<!--            {% endfor %}-->
+<!--        </ul>-->
+<!--        <h2 align="center">История заказов</h2>-->
+<!--            {% for order in user.cart_list.all %}-->
+<!--                {% if order.products.all %}-->
+<!--                    <p>Номер: #{{ order.id }}</p>-->
+<!--                    <ul>-->
+<!--                        {% for product in order.products.all %}-->
+<!--                            <li>{{ product.name|truncatewords:4 }}, Кол-во: {{ product.count }}, Цена: {{ product.price }}</li>-->
+<!--                        {% endfor %}-->
+<!--                        <li style="color: grey;">Сумма заказа: {{ cart.get_total_amount }}</li>-->
+<!--                    </ul>-->
+<!--                {% endif %}-->
+<!--            {% endfor %}-->
+        <ul class="nav nav-tabs">
+          <li class="nav-item">
+            <a class="nav-link active" data-toggle="tab" href="#information">Информация</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#addresses">Адреса</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#history">История заказов</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="information">
+              <h2 align="center">Личная Информация</h2>
+              <p>Имя: {{ user.first_name }}</p>
+              <p>Фамилия: {{ user.last_name }}</p>
+              <p>Телефон: {{ user.phone }}</p>
+              <p>Почта: {{ user.email }}</p>
+          </div>
+          <div class="tab-pane fade hide" id="addresses">
+              <h2 align="center">Адреса</h2>
+              <ul>
+                  {% for address in user.address_set.all %}
+                  <li>
+                      {{ address.city }}, {{ address.street }}, д. {{ address.house }}, кв/оф {{ address.flat }}
+                  </li>
+                  {% endfor %}
+              </ul>
+          </div>
+          <div class="tab-pane fade hide" id="history">
+            <h2 align="center">История заказов</h2>
+            {% for order in user.cart_list.all %}
+                {% if order.products.all %}
+                    <p>Номер: #{{ order.id }}</p>
+                    <ul>
+                        {% for product in order.products.all %}
+                            <li>{{ product.name|truncatewords:4 }}, Кол-во: {{ product.count }}, Цена: {{ product.price }}</li>
+                        {% endfor %}
+                        <li style="color: grey;">Сумма заказа: {{ cart.get_total_amount }}</li>
+                    </ul>
+                {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+    </div>
+{% endblock %}
+
