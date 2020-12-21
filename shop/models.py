@@ -1,11 +1,19 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db.models import F, ExpressionWrapper, FloatField, Sum
+
+
 # Полиморфизм гарантирует, что объект может вести себя по-разному в разных условиях
 
 
+# git init  git status  git add (. / Названия файлов и папок)  git commit -m "сообщение"
+# git checkout (первые 5 цифр коммита / название ветки)  git log - посмотреть историю коммитов
+# git checkout -b название_ветки — создать новую ветку
+#
+
+
 class Product(models.Model):
-    """Товар"""
+    """Модель товара"""
     name = models.CharField(verbose_name="Название", max_length=150, db_index=True)
     description = models.TextField(verbose_name="Описание", null=True, blank=True)
     price = models.FloatField(verbose_name="Цена", help_text="Цену указывать в рублях", db_index=True)
@@ -194,4 +202,4 @@ class PaymentMethod(models.Model):
         return self.name
 
 
-# class Recommendation(models.Model):
+
