@@ -7,7 +7,9 @@ from django.db.models import F, ExpressionWrapper, FloatField, Sum
 
 
 # git init  git status  git add (. / Названия файлов и папок)  git commit -m "сообщение"
-# git checkout (первые 5 цифр коммита / название ветки)
+# git checkout (первые 5 цифр коммита / название ветки)  git log - посмотреть историю коммитов
+# git checkout -b название_ветки — создать новую ветку
+#
 
 
 class Product(models.Model):
@@ -209,4 +211,4 @@ class PaymentMethod(models.Model):
         return self.name
 
 
-# class Recommendation(models.Model):
+
