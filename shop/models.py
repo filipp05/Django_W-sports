@@ -122,15 +122,6 @@ class Address(models.Model):
 
     def __str__(self):
         return f"г. {self.city}, {self.street}, д. {self.house}, кв/оф {self.flat}, получатель: {self.customer}"
-# class Purchase(models.Model):
-#     """Связть продукта с пользователем"""
-#     cart = models.ForeignKey('Cart', verbose_name="Корзина", on_delete=models.PROTECT, db_index=True)
-#     is_paid = models.BooleanField()
-#
-#     class Meta:
-#         verbose_name = "покупка"
-#         verbose_name_plural = "покупки"
-#         ordering = ['-date']
 
 
 class Brand(models.Model):
