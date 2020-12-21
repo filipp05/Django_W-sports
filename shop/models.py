@@ -121,6 +121,7 @@ class Customer(AbstractUser):
 
 # TODO: зашить внутрь системы список городов России
 class Address(models.Model):
+    """Модель адреса"""
     city = models.CharField(max_length=100, verbose_name='Город')
     street = models.CharField(verbose_name='Улица', max_length=100)
     house = models.CharField(max_length=100, verbose_name='Дом')
