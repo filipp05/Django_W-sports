@@ -44,6 +44,7 @@ class Product(models.Model):
 
 
 class ProductAttribute(models.Model):
+    """Модель свойств (аттрибутов) продуктов """
     class AttributeType(models.TextChoices):
         INT = 'INT', 'Целое число'
         FLOAT = 'FLT', 'Дробное число'
