@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from .models import Category, Product, Address, ShippingMethod, PaymentMethod, Cart
+from .models import Category, Product, Address, ShippingMethod, PaymentMethod, Cart, ProductAttributeValue, \
+    ProductAttribute
 from django.forms.utils import ErrorList
 
 Customer = get_user_model()
@@ -78,6 +79,67 @@ class CheckoutForm(forms.ModelForm):
         fields = ['shipping_method', 'payment_method']
 
 
+class InlineProductAttributeValueForm(forms.ModelForm):
+    attribute_name = forms.CharField(label="Название атрибута", required=False)
+    value = forms.CharField(label="Значение", required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        attribute_id = self["attribute"].initial
+        if not attribute_id:
+            return
+
+        attribute = ProductAttribute.objects.get(id=attribute_id)
+        attribute_value = kwargs["instance"]
+        self["attribute_name"].initial = attribute.name
+        self.fields["attribute_name"].widget.attrs["disabled"] = "disabled"
+        if attribute.type == ProductAttribute.AttributeType.BOOLEAN:
+            self.fields["value"] = forms.BooleanField(required=False)
+            self["value"].initial = attribute_value.bool_value
+        elif attribute.type == ProductAttribute.AttributeType.INT:
+            self.fields["value"] = forms.IntegerField(required=False)
+            self["value"].initial = attribute_value.int_value
+        elif attribute.type == ProductAttribute.AttributeType.FLOAT:
+            self.fields["value"] = forms.FloatField(required=False)
+            self["value"].initial = attribute_value.float_value
+        elif attribute.type == ProductAttribute.AttributeType.VARIANTS:
+            self.fields["value"] = forms.ChoiceField(required=False)
+            self.fields["value"].choices = [(item, item) for item in attribute.variantsattributevalue_set.values_list("value", flat=True)]
+            self["value"].initial = attribute_value.str_value
+
+    def save(self, commit=True):
+        attribute_value = super().save(commit=False)
+        attribute = self.cleaned_data["attribute"]
+        if attribute.type == ProductAttribute.AttributeType.INT:
+            attribute_value.int_value = self.cleaned_data["value"]
+        elif attribute.type == ProductAttribute.AttributeType.FLOAT:
+            attribute_value.float_value = self.cleaned_data["value"]
+        elif attribute.type == ProductAttribute.AttributeType.STRING:
+            attribute_value.str_value = self.cleaned_data["value"]
+        elif attribute.type == ProductAttribute.AttributeType.BOOLEAN:
+            attribute_value.bool_value = self.cleaned_data["value"]
+        elif attribute.type == ProductAttribute.AttributeType.VARIANTS:
+            attribute_value.str_value = self.cleaned_data["value"]
+
+        attribute_value.save()
+
+    class Meta:
+        model = ProductAttributeValue
+        fields = ("attribute", )
+        widgets = {"attribute": forms.HiddenInput(), }
+
+
+class ProductAttributeForm(forms.ModelForm):
+    def _save_m2m(self, *args, **kwargs):
+        super()._save_m2m(*args, **kwargs)
+        product_list = Product.objects.filter(category__in=self.instance.categories.all())
+        for product in product_list:
+            if not ProductAttributeValue.objects.filter(product=product, attribute=self.instance).exists():
+                ProductAttributeValue.objects.create(product=product, attribute=self.instance)
+
+    class Meta:
+        model = ProductAttribute
+        fields = "__all__"
 
 
 

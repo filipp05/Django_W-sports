@@ -78,4 +78,47 @@
 
 </div>
 </form></div>
+<script>
+    function onAttributeChange(event)
+    {
+        let attribute = event.target;
+        console.log(attribute.value );
+        let request = new XMLHttpRequest();
+
+        request.onreadystatechange = function()
+        {
+            if (request.readyState == 4)
+            {
+                let type = request.responseText;
+                let id_prefix = attribute.id.substr(0, 31);
+
+                let input_list = attribute.parentElement.parentElement.parentElement.getElementsByClassName("value_input");
+                for (let input of input_list)
+                {
+                    input.style.display = "none";
+                }
+
+                let id = "";
+                if (type == "BLN") id = id_prefix + "bool_value";
+                else if (type == "INT") id = id_prefix + "int_value";
+                else if (type == "STR") id = id_prefix + "string_value";
+                else if (type == "FLT") id = id_prefix + "float_value";
+                let value_input = document.getElementById(id);
+                value_input.style.display = "block";
+            }
+        }
+        request.open("get", "/get_attribute_format?id=" + attribute.value, true);
+        request.send(null);
+    }
+
+
+
+
+    let attribute_wrapper_list = document.getElementsByClassName("related-widget-wrapper");
+    for (attribute_data of attribute_wrapper_list)
+    {
+        let attribute_list = attribute_data.getElementsByTagName("select")[0];
+        attribute_list.addEventListener("change", onAttributeChange);
+    }
+</script>
 {% endblock %}

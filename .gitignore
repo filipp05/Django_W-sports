@@ -2,3 +2,6 @@
 **/migrations/
 media/
 **/__pycache__/
+test.html
+test.js
+test.py

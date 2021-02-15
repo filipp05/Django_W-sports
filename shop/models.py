@@ -10,6 +10,12 @@ from django.db.models import F, ExpressionWrapper, FloatField, Sum
 # git checkout (первые 5 цифр коммита / название ветки)  git log - посмотреть историю коммитов
 # git checkout -b название_ветки — создать новую ветку
 # git merge название_ветки — слить текущую ветку и указанную
+# git pull — вытащить изменения с сервера
+# git push — залить изменения на сервер
+# git remote add origin адрес_сервера — добавления удаленного репозитория для обмена кодом
+# git remote — просмотр списка удаленных репозиториев
+# git remote -v — простотр адресов удаленных репозиториев для загрузки и выгрузки кода
+# git clone адрес_репозитория — клонирование чужого репозитория
 
 
 class Product(models.Model):
@@ -31,10 +37,12 @@ class Product(models.Model):
         return str(self.name)
 
     def save(self, *args, **kwargs):
+        created = not self.pk
         super(Product, self).save(*args, **kwargs)
-        attribute_list = ProductAttribute.objects.filter(category=self.category)
-        for attribute in attribute_list:
-            ProductAttributeValue.objects.create(product=self, attribute=attribute)
+        attribute_list = ProductAttribute.objects.filter(categories=self.category)
+        if created:
+            for attribute in attribute_list:
+                ProductAttributeValue.objects.create(product=self, attribute=attribute)
         return self
 
     class Meta:
@@ -53,11 +61,29 @@ class ProductAttribute(models.Model):
         VARIANTS = 'VRT', 'Набор вариантов'
 
     name = models.CharField(verbose_name='Название', max_length=150)
-    category = models.ForeignKey('Category', verbose_name='Категория', on_delete=models.PROTECT)
+    categories = models.ManyToManyField('Category', verbose_name='Категория')
     type = models.CharField(choices=AttributeType.choices, max_length=3)
 
     def __str__(self):
         return str(self.name)
+
+    # def save(self, *args, **kwargs):
+    #     print(args, kwargs)
+    #     created = not self.pk
+    #     super(ProductAttribute, self).save(*args, **kwargs)
+    #     # super(ProductAttribute, self).save_related(*args, **kwargs)
+    #     product_list = Product.objects.filter(category__in=self.categories.all())
+    #     print(product_list, self.categories.all())
+    #     if created:
+    #         for product in product_list:
+    #             ProductAttributeValue.objects.create(product=product, attribute=self)
+    #     return self
+
+
+class VariantsAttributeValue(models.Model):
+    """"""
+    attribute = models.ForeignKey("ProductAttribute", on_delete=models.CASCADE, verbose_name="Аттрибут")
+    value = models.CharField(verbose_name="Значение", max_length=255)
 
 
 class Category(models.Model):
@@ -202,6 +228,7 @@ class PaymentMethod(models.Model):
 
     def __str__(self):
         return self.name
+
 
 
 

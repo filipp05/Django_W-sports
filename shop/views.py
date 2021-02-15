@@ -1,7 +1,8 @@
 from django.db.models import F, ExpressionWrapper, FloatField, Sum, Count
 from django.db import connection
 from django.shortcuts import render, redirect, reverse
-from .models import Product, Category, Brand, Customer, Cart, ProductCart, Address, ShippingMethod, PaymentMethod
+from .models import Product, Category, Brand, Customer, Cart, ProductCart, Address, ShippingMethod, PaymentMethod, \
+    ProductAttribute
 from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
@@ -9,6 +10,7 @@ from django.forms import formset_factory, modelformset_factory
 from hashlib import md5
 import requests
 from django.http import HttpResponse
+from django.http.response import Http404
 
 
 def index(request):
@@ -212,7 +214,7 @@ def checkout(request):
     # })
     payment_url = f"{url}?MerchantLogin={login}&OutSum={summ}&InvoiceID={order_num}&Description={description}&SignatureValue={controll_summ.hexdigest()}&IsTest=1"
 
-    product_set = cart.products.annotate(ordered_count=F('count'), amount=ExpressionWrapper(F('price') * F('count'),
+    product_set = cart.products.annotate(ordered_count=F('productcart__count'), amount=ExpressionWrapper(F('price') * F('count'),
                                                                                             FloatField())).all()
     shipping_method = cart.shipping_method
     payment_method = cart.payment_method
@@ -293,6 +295,13 @@ def payment_result(request):
 def profile(request):
     cart = get_cart(user=request.user)
     return render(request, 'profile.html', {'cart': cart})
+
+
+def get_attribute_format(request):
+    if request.is_ajax and "id" in request.GET:
+        attribute = ProductAttribute.objects.get(id=request.GET["id"])
+        return HttpResponse(attribute.type)
+    return Http404("Not found...")
 
 # TODO: уменьшать количество товара на складе при их покупке
 # TODO: в шаблоне чекаута переделать вывод заказанного количества товаров - все остальное работает корректно

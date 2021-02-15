@@ -1,6 +1,9 @@
+from django import forms
 from django.contrib import admin
+
+from .forms import InlineProductAttributeValueForm, ProductAttributeForm
 from .models import Category, Product, ProductPhoto, Tag, Customer, Brand, ProductAttribute, Cart, Address, \
-    ProductAttributeValue, ShippingMethod, PaymentMethod
+    ProductAttributeValue, ShippingMethod, PaymentMethod, VariantsAttributeValue
 
 
 class InlineProductPhoto(admin.TabularInline):
@@ -19,10 +22,13 @@ class InlineCartProducts(admin.TabularInline):
 
 class InlineTag(admin.TabularInline):
     model = Tag.product_set.through
+    extra = 0
 
 
 class InlineProductAttributeValue(admin.TabularInline):
     model = ProductAttributeValue
+    extra = 0
+    form = InlineProductAttributeValueForm
 
 
 class InlineProductRecommendations(admin.TabularInline):
@@ -53,6 +59,36 @@ class ProductAdmin(admin.ModelAdmin):
                 for inline_form in formset:
                     inline_form.form.fields['from_product'].queryset = Product.objects.exclude(id=obj.id)
                 break
+            # elif formset.opts.model.__name__ == InlineProductAttributeValue.model.__name__:
+            #     for attribute_form in formset:
+            #         # for field in attribute_form.fieldsets:
+            #         attribute_id = attribute_form.form["attribute"].initial
+            #         # attribute_form.form.fields["attribute"].widget = forms.HiddenInput()
+            #         # attribute_form.form.fields["attribute_name"] = forms.CharField(max_length=255)
+            #         # attribute_form.form.fields["attribute_name"].widget = forms.TextInput()
+            #         #(attribute_form.form.fields["attribute_name"].widget)
+            #         if not attribute_id:
+            #             continue
+            #         type = ProductAttribute.objects.get(id=attribute_id).type
+            #         for field in attribute_form.form:
+            #             attribute_form.form.fields[field.name].widget.attrs["class"] = "value_input"
+            #             print(field.name, type)
+            #             if type == ProductAttribute.AttributeType.FLOAT and field.name == "float_value"\
+            #                     or type == ProductAttribute.AttributeType.INT and field.name == "int_value"\
+            #                     or type == ProductAttribute.AttributeType.STRING and field.name == "str_value"\
+            #                     or type == ProductAttribute.AttributeType.BOOLEAN and field.name == "bool_value"\
+            #                     or type == ProductAttribute.AttributeType.VARIANTS and field.name == "str_value":
+            #                 if field.name == "bool_value":
+            #                     print("check_box")
+            #                     attribute_form.form.fields[field.name].widget = forms.CheckboxInput()
+            #                 elif field.name == "str_value" and type == ProductAttribute.AttributeType.VARIANTS:
+            #                     print("ok")
+            #                     attribute_form.form.fields[field.name].widget = forms.Select()
+            #                     attribute_form.form.fields[field.name].choices = [("ьужской", "мужской")("женский", "жегкский")]
+            #                 continue
+            #
+            #             #attribute_form.form.fields[field.name].widget.attrs["style"] = "display: none"
+            #         #print(attribute_form.form.fields)
 
         return formset_list
 
@@ -67,18 +103,28 @@ class CustomerAdmin(admin.ModelAdmin):
 
 
 class CategoryAttributeInline(admin.TabularInline):
-    model = ProductAttribute
+    model = ProductAttribute.categories.through
     extra = 0
 
 
 class CategoryAdmin(admin.ModelAdmin):
     inlines = (CategoryAttributeInline, )
-    
+
 # InlineProduct
 
 
 class CartAdmin(admin.ModelAdmin):
     inlines = (InlineCartProducts, )
+
+
+class InlineAttributeVariantValues(admin.TabularInline):
+    model = VariantsAttributeValue
+    extra = 0
+
+
+class InlineProductAttributeAdmin(admin.ModelAdmin):
+    inlines = (InlineAttributeVariantValues, )
+    form = ProductAttributeForm
 
 
 admin.site.register(Cart, CartAdmin)
@@ -93,4 +139,6 @@ admin.site.register(ShippingMethod)
 admin.site.register(PaymentMethod)
 admin.site.site_title = 'Winter sports'
 admin.site.site_header = 'Winter sports'
+admin.site.register(ProductAttribute, InlineProductAttributeAdmin)
 
+#TODO: усовершенствовать проверку паролей при регистрации пользователя на амдинской панели
