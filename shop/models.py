@@ -23,7 +23,7 @@ class Product(models.Model):
     name = models.CharField(verbose_name="Название", max_length=150, db_index=True)
     description = models.TextField(verbose_name="Описание", null=True, blank=True)
     price = models.FloatField(verbose_name="Цена", help_text="Цену указывать в рублях", db_index=True)
-    count = models.SmallIntegerField(verbose_name="Количество на скалде", null=True, blank=True)
+
     photo = models.ImageField(upload_to="product_photos", verbose_name="Главное фото товара", default='/xtra/noimage.jpg')
     published = models.DateTimeField(auto_now_add=True, verbose_name='Опубликовано')
     category = models.ForeignKey("Category", on_delete=models.CASCADE, verbose_name="Категория товара", null=True,
@@ -32,6 +32,8 @@ class Product(models.Model):
     brand = models.ForeignKey('Brand', on_delete=models.PROTECT, verbose_name='Бренд', null=True, blank=True)
     attributes = models.ManyToManyField("ProductAttribute", through='ProductAttributeValue')
     recommendations = models.ManyToManyField('Product', verbose_name='рекомендации к товару')
+    # variants = models.ManyToManyField("ProductAttributeValue", verbose_name="Варианты продукта",
+    #                                  through="ProductVariant", related_name="products")
 
     def __str__(self):
         return str(self.name)
@@ -42,13 +44,27 @@ class Product(models.Model):
         attribute_list = ProductAttribute.objects.filter(categories=self.category)
         if created:
             for attribute in attribute_list:
-                ProductAttributeValue.objects.create(product=self, attribute=attribute)
-        return self
+                if attribute.is_choosable:
+                    VariantsAttributeValue.objects.create(product=self, attribute=attribute)
+                else:
+                    ProductAttributeValue.objects.create(product=self, attribute=attribute)
+        return self # TODO: неправильно добавляются выбираемые атрибуты для товаров
 
     class Meta:
         verbose_name = "товар"
         verbose_name_plural = "товары"
         ordering = ["-published"]
+
+
+class ProductVariant(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Продукт")
+    count = models.PositiveSmallIntegerField(verbose_name="Количество")
+    attribute_values = models.ManyToManyField("VariantsAttributeValue", verbose_name="Значения параметров")
+
+
+# class SelectableProductAttributeValue(models.Model):
+#     product_variant = models.ForeignKey(ProductVariant, verbose_name="Вариант продукта", on_delete=models.CASCADE)
+#     value = models.ForeignKey("VariantsAttributeValue", verbose_name="Значение")
 
 
 class ProductAttribute(models.Model):
@@ -63,9 +79,20 @@ class ProductAttribute(models.Model):
     name = models.CharField(verbose_name='Название', max_length=150)
     categories = models.ManyToManyField('Category', verbose_name='Категория')
     type = models.CharField(choices=AttributeType.choices, max_length=3)
+    is_choosable = models.BooleanField(verbose_name="Выбираемый пользователем?", default=False)
 
     def __str__(self):
         return str(self.name)
+
+
+class ChoosableAttributeOptions(models.Model):
+    value = models.CharField(verbose_name="Значение", max_length=255)
+    attribute = models.ForeignKey(ProductAttribute, on_delete=models.CASCADE, verbose_name="Атрибут")
+
+    class Meta:
+        verbose_name = "Значение выбираемого атрибута"
+        verbose_name_plural = "Значения выбираемых атрибутов"
+
 
     # def save(self, *args, **kwargs):
     #     print(args, kwargs)
@@ -78,12 +105,6 @@ class ProductAttribute(models.Model):
     #         for product in product_list:
     #             ProductAttributeValue.objects.create(product=product, attribute=self)
     #     return self
-
-
-class VariantsAttributeValue(models.Model):
-    """"""
-    attribute = models.ForeignKey("ProductAttribute", on_delete=models.CASCADE, verbose_name="Аттрибут")
-    value = models.CharField(verbose_name="Значение", max_length=255)
 
 
 class Category(models.Model):
@@ -175,13 +196,49 @@ class Brand(models.Model):
         ordering = ['name']
 
 
-class ProductAttributeValue(models.Model):
-    product = models.ForeignKey(Product, verbose_name='продукт', on_delete=models.CASCADE)
+class AttributeValue(models.Model):
+
     attribute = models.ForeignKey(ProductAttribute, verbose_name='аттрибут', on_delete=models.CASCADE)
     int_value = models.IntegerField(null=True, blank=True)
     float_value = models.FloatField(null=True, blank=True)
     str_value = models.CharField(max_length=150, null=True, blank=True)
     bool_value = models.BooleanField(null=True, blank=True)
+
+    def __str__(self):
+        if self.attribute.type == ProductAttribute.AttributeType.INT:
+             value = self.int_value
+        elif self.attribute.type == ProductAttribute.AttributeType.FLOAT:
+             value = self.float_value
+        elif self.attribute.type == ProductAttribute.AttributeType.STRING:
+             value = self.str_value
+        elif self.attribute.type == ProductAttribute.AttributeType.BOOLEAN:
+             value = self.bool_value
+        if self.attribute.type == ProductAttribute.AttributeType.VARIANTS:
+             value = " "
+        return f"{ self.attribute.name } { value }"
+
+    class Meta:
+        abstract = True
+
+
+class ProductAttributeValue(AttributeValue):
+    product = models.ForeignKey(Product, verbose_name='продукт', on_delete=models.CASCADE,
+                                related_name="attribute_values")
+
+    class Meta:
+        verbose_name = "Параметры продукта"
+        verbose_name_plural = "Параметры продуктов"
+
+
+class VariantsAttributeValue(AttributeValue):
+    """Варинант продукта"""
+    product = models.ForeignKey(Product, verbose_name='продукт', on_delete=models.CASCADE,
+                                related_name="variant_values")
+    count = models.PositiveSmallIntegerField(verbose_name="Количество на скалде", default=0)
+
+    class Meta:
+        verbose_name = "Вариант продукта"
+        verbose_name_plural = "Варианты продуктов"
 
 
 class ProductCart(models.Model):
@@ -228,6 +285,11 @@ class PaymentMethod(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# class WareHouse(models.Model):
+#     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Продукт")
+#     count = models.PositiveSmallIntegerField(verbose_name="Количество")
 
 
 

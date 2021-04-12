@@ -1,9 +1,10 @@
 from django import forms
 from django.contrib import admin
 
-from .forms import InlineProductAttributeValueForm, ProductAttributeForm
+from .forms import InlineProductAttributeValueForm, ProductAttributeForm, InlineVariantAttributeValueForm
 from .models import Category, Product, ProductPhoto, Tag, Customer, Brand, ProductAttribute, Cart, Address, \
-    ProductAttributeValue, ShippingMethod, PaymentMethod, VariantsAttributeValue
+    ProductAttributeValue, ShippingMethod, PaymentMethod, VariantsAttributeValue, ProductVariant, \
+    ChoosableAttributeOptions
 
 
 class InlineProductPhoto(admin.TabularInline):
@@ -30,6 +31,21 @@ class InlineProductAttributeValue(admin.TabularInline):
     extra = 0
     form = InlineProductAttributeValueForm
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.exclude(attribute__is_choosable=True)
+
+
+class InlineVariantAttributeValues(admin.TabularInline):
+    model = VariantsAttributeValue
+    extra = 0
+    form = InlineVariantAttributeValueForm
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        # print(queryset.exclude(attribute__is_choosable=False))
+        return queryset.exclude(attribute__is_choosable=False)
+
 
 class InlineProductRecommendations(admin.TabularInline):
     model = Product.recommendations.through
@@ -39,14 +55,14 @@ class InlineProductRecommendations(admin.TabularInline):
 
 class ProductAdmin(admin.ModelAdmin):
     exclude = ('tags', 'recommendations')
-    inlines = (InlineProductPhoto, InlineTag, InlineProductAttributeValue, InlineProductRecommendations)
+    inlines = (InlineProductPhoto, InlineTag, InlineProductAttributeValue, InlineProductRecommendations, InlineVariantAttributeValues)
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        product = Product.objects.get(id=object_id)
-        attributes = product.attributes.all()
-        extra_context = extra_context or {}
-        extra_context['attributes_values'] = attributes
-        return super(ProductAdmin, self).change_view(request, object_id, form_url, extra_context)
+    # def change_view(self, request, object_id, form_url='', extra_context=None):
+    #     product = Product.objects.get(id=object_id)
+    #     attributes = product.attributes.all()
+    #     extra_context = extra_context or {}
+    #     extra_context['attributes_values'] = attributes
+    #     return super(ProductAdmin, self).change_view(request, object_id, form_url, extra_context)
 
     def get_inline_formsets(self, request, formsets, inline_instances, obj=None):
         formset_list = super(ProductAdmin, self).get_inline_formsets(request, formsets, inline_instances, obj)
@@ -117,14 +133,17 @@ class CartAdmin(admin.ModelAdmin):
     inlines = (InlineCartProducts, )
 
 
-class InlineAttributeVariantValues(admin.TabularInline):
-    model = VariantsAttributeValue
+class InlineChoosableAttributeOptions(admin.TabularInline):
+    model = ChoosableAttributeOptions
     extra = 0
 
 
-class InlineProductAttributeAdmin(admin.ModelAdmin):
-    inlines = (InlineAttributeVariantValues, )
+class ProductAttributeAdmin(admin.ModelAdmin):
+    inlines = (InlineChoosableAttributeOptions, )
     form = ProductAttributeForm
+
+
+
 
 
 admin.site.register(Cart, CartAdmin)
@@ -139,6 +158,8 @@ admin.site.register(ShippingMethod)
 admin.site.register(PaymentMethod)
 admin.site.site_title = 'Winter sports'
 admin.site.site_header = 'Winter sports'
-admin.site.register(ProductAttribute, InlineProductAttributeAdmin)
+admin.site.register(ProductAttribute, ProductAttributeAdmin)
+admin.site.register(ProductVariant)
 
-#TODO: усовершенствовать проверку паролей при регистрации пользователя на амдинской панели
+
+# TODO: усовершенствовать проверку паролей при регистрации пользователя на амдинской панели

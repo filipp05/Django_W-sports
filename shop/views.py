@@ -39,9 +39,8 @@ def product_detail(request, product_name, ):
     #        return redirect("/accounts/login/?next=/product/" + product_name + "/")
     product = Product.objects.only('description', 'price', 'count', 'name', 'photo', 'brand', 'category')\
                             .select_related('brand', 'category')\
-                            .prefetch_related('recommendations')\
+                            .prefetch_related('recommendations', 'attribute_values')\
                             .get(name=product_name)
-    # most_favourite_products = Product.objects.all().annotate(cart_count=Count('productcart')).order_by('-cart_count')[:3]
     return render(request, 'product_detail.html', {'product': product,})
 
 
@@ -303,6 +302,8 @@ def get_attribute_format(request):
         return HttpResponse(attribute.type)
     return Http404("Not found...")
 
-# TODO: уменьшать количество товара на складе при их покупке
 # TODO: в шаблоне чекаута переделать вывод заказанного количества товаров - все остальное работает корректно
+# TODO: на странице продукта выводить атрибуты со значениями для данного продукта
+# TODO: взять сторонний сервис с погодой для рекомендаций продуктов
+
 

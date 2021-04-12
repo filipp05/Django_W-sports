@@ -58,6 +58,22 @@
                                 <div>{{ product.count }} шт.</div>
                             {% endif %}</p>
                         {% endif %}
+                    {% for attr in product.attribute_values.all %}
+                       <p>{{ attr.attribute.name }}:
+                           {% if attr.attribute.type == 'INT' %}
+                                {{ attr.int_value }}
+                           {% elif attr.attribute.type == 'FLT' %}
+                                {{ attr.float_value }}
+                           {% elif attr.attribute.type == 'STR' %}
+                                {{ attr.str_value }}
+                           {% elif attr.attribute.type == 'BLN' %}
+                                {% if attr.bool_value %} Да {% else %} Нет {% endif %}
+                           {% elif attr.attribute.type == 'VRT' %}
+                                {{ attr.str_value }}
+
+                           {% endif %}
+                       </p>
+                    {% endfor %}
                     {% for tag in product.tags.all %}
                         <p class="tag">#{{ tag }}</p>
                     {% endfor %}
@@ -67,6 +83,7 @@
         </div>
     </div>
     <h2 align="center">К этому товару мы рекомендуем:</h2>
+    <div class="row my-5">
     {% for product in product.recommendations.all %}
         {% if forloop.counter0|divisibleby:"3" %}
         </div><div class="row my-5">
@@ -85,6 +102,7 @@
 </div>
 <h2 align="center">"С этими товарами чаще всего покупают:"</h2>
 {% for product in most_favourite_products %}
+    <div class="row my-5">
     {% for product in product.recommendations.all %}
         {% if forloop.counter0|divisibleby:"3" %}
         </div><div class="row my-5">
@@ -98,7 +116,8 @@
                 </div>
             </a>
         </div>
-</div>
+
     {% endfor %}
+    </div>
 {% endfor %}
 {% endblock %}

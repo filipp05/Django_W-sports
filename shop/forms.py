@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from .models import Category, Product, Address, ShippingMethod, PaymentMethod, Cart, ProductAttributeValue, \
-    ProductAttribute
+    ProductAttribute, VariantsAttributeValue
 from django.forms.utils import ErrorList
 
 Customer = get_user_model()
@@ -104,7 +104,7 @@ class InlineProductAttributeValueForm(forms.ModelForm):
             self["value"].initial = attribute_value.float_value
         elif attribute.type == ProductAttribute.AttributeType.VARIANTS:
             self.fields["value"] = forms.ChoiceField(required=False)
-            self.fields["value"].choices = [(item, item) for item in attribute.variantsattributevalue_set.values_list("value", flat=True)]
+            self.fields["value"].choices = [(item, item) for item in attribute.choosableattributeoptions_set.values_list("value", flat=True)]
             self["value"].initial = attribute_value.str_value
 
     def save(self, commit=True):
@@ -142,8 +142,12 @@ class ProductAttributeForm(forms.ModelForm):
         fields = "__all__"
 
 
+class InlineVariantAttributeValueForm(InlineProductAttributeValueForm):
+    # count = forms.IntegerField(min_value=0)
 
-
+    class Meta(InlineProductAttributeValueForm.Meta):
+        model = VariantsAttributeValue
+        fields = ("attribute", "count", )
 
 
 
