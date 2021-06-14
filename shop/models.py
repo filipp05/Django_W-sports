@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db.models import F, ExpressionWrapper, FloatField, Sum
-
+#TODO: Модель пользователя: рост, вес, размер ноги, навыки катания и тп... Мази по температуре, фильтры масок по освещенности
 
 # Полиморфизм гарантирует, что объект может вести себя по-разному в разных условиях
 
@@ -44,9 +44,7 @@ class Product(models.Model):
         attribute_list = ProductAttribute.objects.filter(categories=self.category)
         if created:
             for attribute in attribute_list:
-                if attribute.is_choosable:
-                    VariantsAttributeValue.objects.create(product=self, attribute=attribute)
-                else:
+                if not attribute.is_choosable:
                     ProductAttributeValue.objects.create(product=self, attribute=attribute)
         return self # TODO: неправильно добавляются выбираемые атрибуты для товаров
 
@@ -58,13 +56,21 @@ class Product(models.Model):
 
 class ProductVariant(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Продукт")
-    count = models.PositiveSmallIntegerField(verbose_name="Количество")
-    attribute_values = models.ManyToManyField("VariantsAttributeValue", verbose_name="Значения параметров")
+    count = models.PositiveSmallIntegerField(verbose_name="Количество", default=0)
+    attribute_values = models.ManyToManyField("ProductAttribute", verbose_name="Значения параметров", through="VariantsAttributeValue")
 
+    def __str__(self):
+        return f"{self.product}: {', '.join([ str(attr_val.get_value()) for attr_val in self.variant_values.all()])}" #TODO: доделать метод и вывести выбираемые атрибуты на странице продукта на сайте
 
-# class SelectableProductAttributeValue(models.Model):
-#     product_variant = models.ForeignKey(ProductVariant, verbose_name="Вариант продукта", on_delete=models.CASCADE)
-#     value = models.ForeignKey("VariantsAttributeValue", verbose_name="Значение")
+    def save(self, *args, **kwargs):
+        created = not self.pk
+        super(ProductVariant, self).save(*args, **kwargs)
+        attribute_list = ProductAttribute.objects.filter(categories=self.product.category)
+        if created:
+            for attribute in attribute_list:
+                if attribute.is_choosable:
+                    VariantsAttributeValue.objects.create(product_variant=self, attribute=attribute)
+        return self
 
 
 class ProductAttribute(models.Model):
@@ -154,7 +160,7 @@ class Customer(AbstractUser):
     phone = models.CharField(verbose_name="Телефон",
                              blank=True, max_length=12, null=True, )
     email = models.EmailField(verbose_name='email', unique=True)
-    visited_categories = models.ManyToManyField(Category, verbose_name='Посещенные категории', null=True, blank=True)
+    # visited_categories = models.ManyToManyField(Category, verbose_name='Посещенные категории', null=True, blank=True)
 
     #    purchases = models.ManyToManyField("Product", through="Purchase", verbose_name="Товары")
 
@@ -185,7 +191,7 @@ class Brand(models.Model):
     """Бренд"""
     name = models.CharField(max_length=150, verbose_name='Название')
     description = models.TextField(verbose_name='Описание', null=True, blank=True)
-    photo = models.ImageField(verbose_name='Фото', upload_to='brand_photos', null=True, blank=True)
+    photo = models.ImageField(verbose_name='Фото', upload_to='brand_photos', null=True, blank=True, default="xtra/noimage.jpg")
 
     def __str__(self):
         return str(self.name)
@@ -197,7 +203,6 @@ class Brand(models.Model):
 
 
 class AttributeValue(models.Model):
-
     attribute = models.ForeignKey(ProductAttribute, verbose_name='аттрибут', on_delete=models.CASCADE)
     int_value = models.IntegerField(null=True, blank=True)
     float_value = models.FloatField(null=True, blank=True)
@@ -217,6 +222,9 @@ class AttributeValue(models.Model):
              value = " "
         return f"{ self.attribute.name } { value }"
 
+    def get_value(self):
+        return self.int_value or self.float_value or self.str_value or self.bool_value
+
     class Meta:
         abstract = True
 
@@ -232,9 +240,8 @@ class ProductAttributeValue(AttributeValue):
 
 class VariantsAttributeValue(AttributeValue):
     """Варинант продукта"""
-    product = models.ForeignKey(Product, verbose_name='продукт', on_delete=models.CASCADE,
+    product_variant = models.ForeignKey(ProductVariant, verbose_name='Вариант продукта', on_delete=models.CASCADE,
                                 related_name="variant_values")
-    count = models.PositiveSmallIntegerField(verbose_name="Количество на скалде", default=0)
 
     class Meta:
         verbose_name = "Вариант продукта"
@@ -242,7 +249,7 @@ class VariantsAttributeValue(AttributeValue):
 
 
 class ProductCart(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
     cart = models.ForeignKey('Cart', on_delete=models.CASCADE)
     count = models.SmallIntegerField(default=1)
 
@@ -250,7 +257,7 @@ class ProductCart(models.Model):
 class Cart(models.Model):
     """Модель корзины продуктов"""
     owner = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='cart_list')
-    products = models.ManyToManyField(Product, through='ProductCart')
+    products_variants = models.ManyToManyField(ProductVariant, through='ProductCart')
     created_at = models.DateTimeField(auto_now=True)
     is_shipped = models.BooleanField(default=False)
     is_paid = models.BooleanField(default=False)
@@ -262,7 +269,9 @@ class Cart(models.Model):
                                        verbose_name='Способ оплаты')
 
     def get_total_amount(self):
-        total_amount = self.products.annotate(amount=ExpressionWrapper(F('price') * F('productcart__count'), FloatField())).aggregate(value=Sum(F("amount")))
+        total_amount = ProductCart.objects.filter(cart=self).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
+
+        # total_amount = self.products_variants.annotate(amount=ExpressionWrapper(F('product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
         return total_amount['value']
 
     def __str__(self):

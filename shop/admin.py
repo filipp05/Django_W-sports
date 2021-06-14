@@ -1,14 +1,14 @@
 from django import forms
 from django.contrib import admin
 
-from .forms import InlineProductAttributeValueForm, ProductAttributeForm, InlineVariantAttributeValueForm
+from .forms import InlineProductAttributeValueForm, ProductAttributeForm
 from .models import Category, Product, ProductPhoto, Tag, Customer, Brand, ProductAttribute, Cart, Address, \
-    ProductAttributeValue, ShippingMethod, PaymentMethod, VariantsAttributeValue, ProductVariant, \
-    ChoosableAttributeOptions
+    ProductAttributeValue, ShippingMethod, PaymentMethod, ProductVariant, ChoosableAttributeOptions, VariantsAttributeValue
 
 
 class InlineProductPhoto(admin.TabularInline):
     model = ProductPhoto
+    extra = 0
 
 
 class InlineProduct(admin.TabularInline):
@@ -17,7 +17,7 @@ class InlineProduct(admin.TabularInline):
 
 
 class InlineCartProducts(admin.TabularInline):
-    model = Cart.products.through
+    model = Cart.products_variants.through
     extra = 0
 
 
@@ -36,15 +36,15 @@ class InlineProductAttributeValue(admin.TabularInline):
         return queryset.exclude(attribute__is_choosable=True)
 
 
-class InlineVariantAttributeValues(admin.TabularInline):
-    model = VariantsAttributeValue
-    extra = 0
-    form = InlineVariantAttributeValueForm
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        # print(queryset.exclude(attribute__is_choosable=False))
-        return queryset.exclude(attribute__is_choosable=False)
+# class InlineVariantAttributeValues(admin.TabularInline):
+#     model = VariantsAttributeValue
+#     extra = 0
+#     form = InlineVariantAttributeValueForm
+#
+#     def get_queryset(self, request):
+#         queryset = super().get_queryset(request)
+#         # print(queryset.exclude(attribute__is_choosable=False))
+#         return queryset.exclude(attribute__is_choosable=False)
 
 
 class InlineProductRecommendations(admin.TabularInline):
@@ -55,7 +55,7 @@ class InlineProductRecommendations(admin.TabularInline):
 
 class ProductAdmin(admin.ModelAdmin):
     exclude = ('tags', 'recommendations')
-    inlines = (InlineProductPhoto, InlineTag, InlineProductAttributeValue, InlineProductRecommendations, InlineVariantAttributeValues)
+    inlines = (InlineProductPhoto, InlineTag, InlineProductAttributeValue, InlineProductRecommendations, )
 
     # def change_view(self, request, object_id, form_url='', extra_context=None):
     #     product = Product.objects.get(id=object_id)
@@ -143,7 +143,14 @@ class ProductAttributeAdmin(admin.ModelAdmin):
     form = ProductAttributeForm
 
 
+class InlineVariantAttributes(admin.TabularInline):
+    model = ProductVariant.attribute_values.through
+    extra = 0
+    form = InlineProductAttributeValueForm
 
+
+class ProductVariantAdmin(admin.ModelAdmin):
+    inlines = (InlineVariantAttributes, )
 
 
 admin.site.register(Cart, CartAdmin)
@@ -159,7 +166,8 @@ admin.site.register(PaymentMethod)
 admin.site.site_title = 'Winter sports'
 admin.site.site_header = 'Winter sports'
 admin.site.register(ProductAttribute, ProductAttributeAdmin)
-admin.site.register(ProductVariant)
+admin.site.register(ProductVariant, ProductVariantAdmin)
+
 
 
 # TODO: усовершенствовать проверку паролей при регистрации пользователя на амдинской панели

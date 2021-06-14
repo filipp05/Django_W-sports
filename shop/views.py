@@ -1,8 +1,8 @@
-from django.db.models import F, ExpressionWrapper, FloatField, Sum, Count
+from django.db.models import F, ExpressionWrapper, FloatField, Sum, Count, Prefetch, Q
 from django.db import connection
 from django.shortcuts import render, redirect, reverse
 from .models import Product, Category, Brand, Customer, Cart, ProductCart, Address, ShippingMethod, PaymentMethod, \
-    ProductAttribute
+    ProductAttribute, ProductVariant, AttributeValue, VariantsAttributeValue
 from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
@@ -37,9 +37,11 @@ def category_products(request, category_name):
 def product_detail(request, product_name, ):
     #    if not request.user.is_authenticated:
     #        return redirect("/accounts/login/?next=/product/" + product_name + "/")
-    product = Product.objects.only('description', 'price', 'count', 'name', 'photo', 'brand', 'category')\
+
+    product = Product.objects.only('description', 'price', 'name', 'photo', 'brand', 'category')\
                             .select_related('brand', 'category')\
-                            .prefetch_related('recommendations', 'attribute_values')\
+                            .prefetch_related('recommendations', 'attribute_values', "productvariant_set")\
+                            .annotate(count=Sum("productvariant__count"))\
                             .get(name=product_name)
     return render(request, 'product_detail.html', {'product': product,})
 
@@ -101,14 +103,38 @@ def get_cart(user):
 
 @login_required
 def add_to_cart(request, product_id):
-    current_cart = get_cart(request.user)
-    product = Product.objects.get(id=product_id)
-    try:
-        product_cart = ProductCart.objects.get(cart=current_cart, product=product)
-        product_cart.count += 1
-        product_cart.save()
-    except ProductCart.DoesNotExist:
-        product_cart = ProductCart.objects.create(cart=current_cart, product=product)
+    if request.method == "POST":
+        current_cart = get_cart(request.user)
+        data = dict(request.POST)
+        data.pop('csrfmiddlewaretoken')
+        query = Q()
+
+        for key in data:
+            try:
+                int_value=int(data[key][0])
+            except:
+                int_value = None
+
+            try:
+                float_value=float(data[key][0])
+            except:
+                float_value = None
+
+            query.add(Q(Q(attribute_id=int(key[10:])) & Q(Q(int_value=int_value) & Q(float_value=float_value) & Q(str_value=data[key][0]))), Q.OR)
+
+        variant = VariantsAttributeValue.objects.filter(query, Q(product_variant__product__id=product_id)).first().product_variant
+        print(variant)
+        # product = Product.objects.get(id=product_id)
+        #
+        # for attr in request.POST.keys():
+        #     attr_id = attr[10:]
+        #     print(attr_id)
+        try:
+            product_cart = ProductCart.objects.get(cart=current_cart, product_variant=variant)
+            product_cart.count += 1
+            product_cart.save()
+        except ProductCart.DoesNotExist:
+            product_cart = ProductCart.objects.create(cart=current_cart, product_variant=variant)
     return redirect(reverse('Wsports:cart_url'))
 
     # reverse вычисляет по названию урла адрес
@@ -117,9 +143,16 @@ def add_to_cart(request, product_id):
 @login_required
 def cart(request):
     cart = get_cart(request.user)
-    product_set = cart.products.annotate(ordered_count=F('productcart__count'), amount=ExpressionWrapper(F('price') * F('ordered_count'),
-                                                                                            FloatField())).all()
-    return render(request, 'cart.html', {'cart': cart, 'product_set': product_set})
+    #order_set = ProductCart.objects.filter(cart=cart).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(Prefetch("attribute_values", VariantsAttributeValue.objects.all()))))
+    order_set = ProductCart.objects.filter(cart__id=1).prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(Prefetch("attribute_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant"))))))
+                                                                                                                                        #annotate(value=F("str_value"))))))
+    # for order_num, order in enumerate(order_set):
+    #     attributes = order_set[order_num].product_variant.attribute_values.all()
+    #     for attr_num, attr in enumerate(attributes):
+    #         value = VariantsAttributeValue.objects.get(attribute=attr, product_variant=order.product_variant)
+    #         attributes[attr_num].__setattr__("value", value.get_value())
+    #     order_set[order_num].product_variant.__setattr__("attributes", attributes)
+    return render(request, 'cart.html', {'cart': cart, 'order_set': order_set})
     # aggregate вычисляет на основе значений запроса конкретные результаты и возвращает только их
     # annotate добавляет вычисленного значения в обЪекту модели при выполнении запроса
     # ExpressionWrapper и его атрибут output_field созданы для корректного вывода и явного преобразования(таких куча)
@@ -242,7 +275,6 @@ def purchase(request):
 
 @login_required
 def payment_success(request):
-
     if request.method != 'GET':
         return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
 

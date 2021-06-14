@@ -27,7 +27,7 @@
     <div class="row">
         <div class="col">
             <div class="row">
-                <div class="col"><img src="{{ product.photo.url }}" alt="{{ product }}"/></div>
+                <div class="col-8"><img src="{{ product.photo.url }}" alt="{{ product }}" style="width: 100%;"/></div>
             </div>
             <div class="row">
                 <div class="col">
@@ -51,13 +51,11 @@
                     <b><p>{{ product.brand }}</p></b>
                     <p>{{ product.description }}</p>
                     <p><b>{{ product.price }} <sup>руб</sup></b>
-                        {% if product.count %}
                             {% if product.count == 0 %}
                                 <div class="ocount">нет в наличии</div>
                             {% else %}
                                 <div>{{ product.count }} шт.</div>
                             {% endif %}</p>
-                        {% endif %}
                     {% for attr in product.attribute_values.all %}
                        <p>{{ attr.attribute.name }}:
                            {% if attr.attribute.type == 'INT' %}
@@ -74,10 +72,26 @@
                            {% endif %}
                        </p>
                     {% endfor %}
-                    {% for tag in product.tags.all %}
-                        <p class="tag">#{{ tag }}</p>
-                    {% endfor %}
-                    <a href="{% url 'Wsports:add_to_cart_url' product_id=product.id %}"><button class="btn btn-primary">Добавить</button></a>
+                    <form action="{% url 'Wsports:add_to_cart_url' product_id=product.id %}" method="POST">
+                        {% csrf_token %}
+
+                        {% for variant in product.productvariant_set.first.variant_values.all %}
+                            <p>
+                                <label>{{ variant.attribute }}:</label>
+                                <select name="attribute-{{ variant.attribute.id }}">
+                                    {% for option in variant.attribute.choosableattributeoptions_set.all %}
+                                        <option value="{{ option.value }}">{{ option.value }}</option>
+                                    {% endfor %}
+                                </select>
+                            </p>
+                        {% endfor %}
+
+                        {% for tag in product.tags.all %}
+                            <p class="tag">#{{ tag }}</p>
+                        {% endfor %}
+                        <input type="submit" class="btn btn-primary" value="Добавить">
+                    </form>
+
                 </div>
             </div>
         </div>
