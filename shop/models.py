@@ -26,7 +26,7 @@ class Product(models.Model):
 
     photo = models.ImageField(upload_to="product_photos", verbose_name="Главное фото товара", default='/xtra/noimage.jpg')
     published = models.DateTimeField(auto_now_add=True, verbose_name='Опубликовано')
-    category = models.ForeignKey("Category", on_delete=models.CASCADE, verbose_name="Категория товара", null=True,
+    categories = models.ManyToManyField("Category", verbose_name="Категория товара", null=True,
                                  blank=True, db_index=True)
     tags = models.ManyToManyField('Tag', verbose_name='Тэг')
     brand = models.ForeignKey('Brand', on_delete=models.PROTECT, verbose_name='Бренд', null=True, blank=True)
@@ -248,7 +248,7 @@ class VariantsAttributeValue(AttributeValue):
         verbose_name_plural = "Варианты продуктов"
 
 
-class ProductCart(models.Model):
+class Order(models.Model):
     product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
     cart = models.ForeignKey('Cart', on_delete=models.CASCADE)
     count = models.SmallIntegerField(default=1)
@@ -257,7 +257,7 @@ class ProductCart(models.Model):
 class Cart(models.Model):
     """Модель корзины продуктов"""
     owner = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='cart_list')
-    products_variants = models.ManyToManyField(ProductVariant, through='ProductCart')
+    products_variants = models.ManyToManyField(ProductVariant, through='Order')
     created_at = models.DateTimeField(auto_now=True)
     is_shipped = models.BooleanField(default=False)
     is_paid = models.BooleanField(default=False)
@@ -269,7 +269,7 @@ class Cart(models.Model):
                                        verbose_name='Способ оплаты')
 
     def get_total_amount(self):
-        total_amount = ProductCart.objects.filter(cart=self).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
+        total_amount = Order.objects.filter(cart=self).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
 
         # total_amount = self.products_variants.annotate(amount=ExpressionWrapper(F('product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
         return total_amount['value']

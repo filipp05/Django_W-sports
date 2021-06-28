@@ -10,19 +10,19 @@
 
             <li class="list-group-item">
 
-                    {#<a href="{% url 'Wsports:product_url' order.product_variant.product.name %}">#}
+                    <a href="{% url 'Wsports:product_url' order.product_variant.product.name %}">
                         <div>
                             <div style="float: left; width: 70%; color: black;">
-                                {#<p>Товар:&nbsp;{{ order.product_variant.product.name }}</p>#}
-                                <p>{% for attr in order.attribute_values.all %}{{ attr }}: {{ attr.value }}, {% endfor %}</p>
-                                {% comment %}<p>Цена:&nbsp;{{ order.product_variant.product.price }}</p>
-                                <p>Количество:&nbsp;{{ order.count }} <a href="{% url 'Wsports:change_count_url' order.product_variant.product.id 1 %}">+</a> / <a href="{% url 'Wsports:change_count_url' order.product_variant.product.id -1 %}">-</a></p>
+                                <p>Товар:&nbsp;{{ order.product_variant.product.name }}</p>
+                                <p>{% for attr in order.product_variant.variant_values.all %}{{ attr }}: {{ attr.value }}, {% endfor %}</p>
+                                <p>Цена:&nbsp;{{ order.product_variant.product.price }}</p>
+                                <p>Количество:&nbsp;{{ order.count }} <a href="{% url 'Wsports:change_count_url' order.product_variant.id -1 %}">-</a> / <a href="{% url 'Wsports:change_count_url' order.product_variant.id 1 %}">+</a></p>
                                 <p>Стоимость:&nbsp;{{ order.amount }}</p>
                                 <p><a href="{% url 'Wsports:product_delete_url' order.product_variant.product.id %}">Убрать</a></p>
 
                             </div>
                                 <img src="{{ order.product_variant.product.photo.url }}" alt="{{ order.product_variant.product.name }}" height="99" width="auto" style="width: 30%; float: right; display: block;">
-                                {% endcomment %}
+
                         </div>
                     </a>
             </li>

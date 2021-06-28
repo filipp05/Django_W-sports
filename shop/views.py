@@ -1,7 +1,7 @@
 from django.db.models import F, ExpressionWrapper, FloatField, Sum, Count, Prefetch, Q
 from django.db import connection
 from django.shortcuts import render, redirect, reverse
-from .models import Product, Category, Brand, Customer, Cart, ProductCart, Address, ShippingMethod, PaymentMethod, \
+from .models import Product, Category, Brand, Customer, Cart, Order, Address, ShippingMethod, PaymentMethod, \
     ProductAttribute, ProductVariant, AttributeValue, VariantsAttributeValue
 from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm
 from django.contrib.auth.decorators import login_required
@@ -38,9 +38,9 @@ def product_detail(request, product_name, ):
     #    if not request.user.is_authenticated:
     #        return redirect("/accounts/login/?next=/product/" + product_name + "/")
 
-    product = Product.objects.only('description', 'price', 'name', 'photo', 'brand', 'category')\
-                            .select_related('brand', 'category')\
-                            .prefetch_related('recommendations', 'attribute_values', "productvariant_set")\
+    product = Product.objects.only('description', 'price', 'name', 'photo', 'brand', 'categories')\
+                            .select_related('brand')\
+                            .prefetch_related('recommendations', 'attribute_values', "productvariant_set", "categories")\
                             .annotate(count=Sum("productvariant__count"))\
                             .get(name=product_name)
     return render(request, 'product_detail.html', {'product': product,})
@@ -130,11 +130,11 @@ def add_to_cart(request, product_id):
         #     attr_id = attr[10:]
         #     print(attr_id)
         try:
-            product_cart = ProductCart.objects.get(cart=current_cart, product_variant=variant)
+            product_cart = Order.objects.get(cart=current_cart, product_variant=variant)
             product_cart.count += 1
             product_cart.save()
-        except ProductCart.DoesNotExist:
-            product_cart = ProductCart.objects.create(cart=current_cart, product_variant=variant)
+        except Order.DoesNotExist:
+            product_cart = Order.objects.create(cart=current_cart, product_variant=variant)
     return redirect(reverse('Wsports:cart_url'))
 
     # reverse вычисляет по названию урла адрес
@@ -143,8 +143,11 @@ def add_to_cart(request, product_id):
 @login_required
 def cart(request):
     cart = get_cart(request.user)
-    #order_set = ProductCart.objects.filter(cart=cart).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(Prefetch("attribute_values", VariantsAttributeValue.objects.all()))))
-    order_set = ProductCart.objects.filter(cart__id=1).prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(Prefetch("attribute_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant"))))))
+    #order_set = Order.objects.filter(cart=cart).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(Prefetch("attribute_values", VariantsAttributeValue.objects.all()))))
+    order_set = Order.objects.filter(cart=cart)\
+        .annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField()))\
+        .prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(Prefetch("variant_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant"))\
+        .annotate(value=F("str_value"))))))
                                                                                                                                         #annotate(value=F("str_value"))))))
     # for order_num, order in enumerate(order_set):
     #     attributes = order_set[order_num].product_variant.attribute_values.all()
@@ -212,16 +215,16 @@ def delete_from_cart(request, product_id):
 
 
 @login_required
-def change_count(request, product_id, count):
+def change_count(request, product_variant_id, count):
     cart = get_cart(request.user)
-    current_product = cart.products.get(id=product_id)
-    product_cart = ProductCart.objects.get(cart=cart, product=current_product)
+    order = Order.objects.get(cart=cart, product_variant__id=product_variant_id)
 
-    if product_cart.count == 1 and int(count) == -1:
-        return redirect(reverse('Wsports:product_delete_url', kwargs={'product_id': product_id}))
 
-    product_cart.count = F('count') + int(count)
-    product_cart.save()
+    if order.count == 1 and int(count) == -1:
+        return redirect(reverse('Wsports:product_delete_url', kwargs={'product_id': product_variant_id}))
+
+    order.count = F('count') + int(count)
+    order.save()
     return redirect(reverse('Wsports:cart_url'))
 
 
@@ -315,7 +318,7 @@ def payment_result(request):
     products_to_update = []
 
     for product in cart.products.all():
-        product.count -= ProductCart.objects.get(product=product, cart=cart).count
+        product.count -= Order.objects.get(product=product, cart=cart).count
         products_to_update.append(product)
     Product.objects.bulk_update(products_to_update, fields=('count',))
 
