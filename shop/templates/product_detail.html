@@ -14,6 +14,10 @@
         color: red;
     }
 
+    #btn-rent p {
+        margin-bottom: 0;
+    }
+
 <!--    .buttonn {-->
 <!--        background: white-->
 <!--        a.button: hover { background: rgb(80, 80, 80); }-->
@@ -72,7 +76,7 @@
                            {% endif %}
                        </p>
                     {% endfor %}
-                    <form action="{% url 'Wsports:add_to_cart_url' product_id=product.id %}" method="POST">
+                    <form action="{% url 'Wsports:add_to_cart_url' product_id=product.id %}" method="POST" id="add_to_cart_form">
                         {% csrf_token %}
 
                         {% for variant in product.productvariant_set.first.variant_values.all %}
@@ -89,7 +93,13 @@
                         {% for tag in product.tags.all %}
                             <p class="tag">#{{ tag }}</p>
                         {% endfor %}
-                        <input type="submit" class="btn btn-primary" value="Добавить">
+                        <div id="buttons-wrapper">
+                            <input type="submit" class="btn btn-primary" value="Добавить">
+                            <div class="btn btn-primary" id="btn-rent">
+                                <p>В аренду</p>
+                            </div>
+                        </div>
+
                     </form>
 
                 </div>
@@ -134,4 +144,19 @@
     {% endfor %}
     </div>
 {% endfor %}
+    <script>
+        function sentRentForm()
+        {
+            let form = document.getElementById("add_to_cart_form");
+            form.action = "{% url 'Wsports:rent_product' %}";
+            form.submit();
+
+        }
+
+        let rent_btn = document.getElementById("btn-rent");
+        rent_btn.addEventListener("click", sentRentForm);
+
+
+
+    </script>
 {% endblock %}

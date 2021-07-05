@@ -23,7 +23,8 @@ urlpatterns = [
     path('success/', views.payment_success, name='payment_success_url'),
     path('failure/', views.payment_failure, name='payment_failure_url'),
     path('result/', views.payment_result, name="payment_result_url"),
-    path('get_attribute_format/', views.get_attribute_format, name="get_attribute_format_url")
+    path('get_attribute_format/', views.get_attribute_format, name="get_attribute_format_url"),
+    path('rent_product/', views.rent_product, name="rent_product")
 
 
 ]

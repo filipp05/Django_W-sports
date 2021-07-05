@@ -337,6 +337,10 @@ def get_attribute_format(request):
         return HttpResponse(attribute.type)
     return Http404("Not found...")
 
+
+def rent_product(request):
+    pass
+
 # TODO: в шаблоне чекаута переделать вывод заказанного количества товаров - все остальное работает корректно
 # TODO: на странице продукта выводить атрибуты со значениями для данного продукта
 # TODO: взять сторонний сервис с погодой для рекомендаций продуктов
