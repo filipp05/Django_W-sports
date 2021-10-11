@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %} Профиль - {{ user.first_name }} {{ user.last_name }} {% endblock %}
+{% block title %} Профиль {% if user.first_name and user.last_name %}- {{ user.first_name }} {{ user.last_name }} {% endif %}{% endblock %}
 
 {% block content %}
     <div class="container mt-5">
@@ -39,39 +39,60 @@
           <li class="nav-item">
             <a class="nav-link" data-toggle="tab" href="#history">История заказов</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#rent">Аренда</a>
+          </li>
         </ul>
         <div class="tab-content">
-          <div class="tab-pane fade show active" id="information">
-              <h2 align="center">Личная Информация</h2>
-              <p>Имя: {{ user.first_name }}</p>
-              <p>Фамилия: {{ user.last_name }}</p>
-              <p>Телефон: {{ user.phone }}</p>
-              <p>Почта: {{ user.email }}</p>
-          </div>
-          <div class="tab-pane fade hide" id="addresses">
-              <h2 align="center">Адреса</h2>
-              <ul>
-                  {% for address in user.address_set.all %}
-                  <li>
-                      {{ address.city }}, {{ address.street }}, д. {{ address.house }}, кв/оф {{ address.flat }}
-                  </li>
-                  {% endfor %}
-              </ul>
-          </div>
-          <div class="tab-pane fade hide" id="history">
-            <h2 align="center">История заказов</h2>
-            {% for order in user.cart_list.all %}
-                {% if order.products.all %}
-                    <p>Номер: #{{ order.id }}</p>
+            <div class="tab-pane fade show active" id="information">
+                <h2 align="center">Личная Информация</h2>
+                <p>Имя: {{ user.first_name }}</p>
+                <p>Фамилия: {{ user.last_name }}</p>
+                <p>Телефон: {{ user.phone }}</p>
+                <p>Почта: {{ user.email }}</p>
+            </div>
+            <div class="tab-pane fade hide" id="addresses">
+                <h2 align="center">Адреса</h2>
+                <ul>
+                    {% for address in user.address_set.all %}
+                    <li>
+                        {{ address.city }}, {{ address.street }}, д. {{ address.house }}, кв/оф {{ address.flat }}
+                        <a href="{% url 'Wsports:delete_address_url' address.id %}">Удалить</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="tab-pane fade hide" id="history">
+                <h2 align="center">История заказов</h2>
+            {% for cart in carts %}
+                {% if cart.products_variants.all %}
+                    <p>Номер: #{{ cart.id }}</p>
                     <ul>
-                        {% for product in order.products.all %}
-                            <li>{{ product.name|truncatewords:4 }}, Кол-во: {{ product.count }}, Цена: {{ product.price }}</li>
+                        {% for order in cart.order_set.all %}
+                            <li>{{ order.product_variant.product.name|truncatewords:4 }}, Кол-во: {{ order.count }}, Цена: {{ order.product_variant.product.price }}
+                                {% for attr in order.product_variant.variant_values.all %}{{ attr }}: {{ attr.value }}, {% endfor %}
+                            </li>
                         {% endfor %}
-                        <li style="color: grey;">Сумма заказа: {{ cart.get_total_amount }}</li>
+                        <li style="color: grey;">Сумма заказа: {{ cart.get_total_amount }} руб.</li>
                     </ul>
                 {% endif %}
             {% endfor %}
-          </div>
+            </div>
+            <div class="tab-pane fade hide" id="rent">
+                <h2 align="center">Аренда</h2>
+                {% for rent in rent_set %}
+                    <p>{{ forloop.counter }}. <a href="{% url 'Wsports:product_url' rent.product_variant.product.name %}">{{ rent.product_variant }}</a>
+                        <br>&nbsp;&nbsp;Начальная дата: {{ rent.begin_date }}
+                        <br>&nbsp;&nbsp;Длительность: {{ rent.duration }} дней
+
+                        {% if rent.get_rent_days_left < 0 %}
+                            <span style="color: red;"> - Просрочено</span>
+                        {% else %}
+                            <br>&nbsp;&nbsp;Осталось: {{ rent.get_rent_days_left }} дней
+                        {% endif %}
+                    </p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 {% endblock %}

@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container">
-    {#{% if not product_set %}#}
+    {% if order_set %}
     <ul class="list-group list-group-flush mt-5">
         {% for order in order_set %}
 
@@ -18,7 +18,7 @@
                                 <p>Цена:&nbsp;{{ order.product_variant.product.price }}</p>
                                 <p>Количество:&nbsp;{{ order.count }} <a href="{% url 'Wsports:change_count_url' order.product_variant.id -1 %}">-</a> / <a href="{% url 'Wsports:change_count_url' order.product_variant.id 1 %}">+</a></p>
                                 <p>Стоимость:&nbsp;{{ order.amount }}</p>
-                                <p><a href="{% url 'Wsports:product_delete_url' order.product_variant.product.id %}">Убрать</a></p>
+                                <p><a href="{% url 'Wsports:product_delete_url' order.product_variant.id %}">Убрать</a></p>
 
                             </div>
                                 <img src="{{ order.product_variant.product.photo.url }}" alt="{{ order.product_variant.product.name }}" height="99" width="auto" style="width: 30%; float: right; display: block;">
@@ -28,11 +28,12 @@
             </li>
         {% endfor %}
         </ul>
+
         <p><b>&nbsp;К оплате: {{ cart.get_total_amount }}</b></p>
         <a href="{% url 'Wsports:shipping_and_payment_url' %}"><button class="btn btn-success">Оформить</button></a>
 
-    {#{% else %}#}
+    {% else %}
         <p class="mt-5"><b>Корзина пуста</b></p>
-    {#{% endif %}#}
+    {% endif %}
 </div>
 {% endblock %}

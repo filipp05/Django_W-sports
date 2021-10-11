@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from .models import Category, Product, Address, ShippingMethod, PaymentMethod, Cart, ProductAttributeValue, \
-    ProductAttribute # VariantsAttributeValue
+    ProductAttribute, Rent  # VariantsAttributeValue
 from django.forms.utils import ErrorList
 
 Customer = get_user_model()
@@ -143,6 +143,13 @@ class ProductAttributeForm(forms.ModelForm):
     class Meta:
         model = ProductAttribute
         fields = "__all__"
+
+
+class ProductRentForm(forms.ModelForm):
+    class Meta:
+        model = Rent
+        fields = ("duration", "rules_acception")
+
 
 
 # class InlineVariantAttributeValueForm(InlineProductAttributeValueForm):

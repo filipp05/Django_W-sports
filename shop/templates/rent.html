@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %} Заполните форму {% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <p>Товар:&nbsp;{{ variant.product.name }}</p>
+        <p>{% for attr in variant.variant_values.all %}{{ attr }}: {{ attr.value }}, {% endfor %}</p>
+
+        <form action="/rent/{{ variant.id }}/" method="POST">
+            {% csrf_token %}
+
+            {{ form.as_p }}
+
+            <input type="submit" value="Оформить аренду">
+        </form>
+
+
+    </div>
+
+
+{% endblock %}

@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db.models import F, ExpressionWrapper, FloatField, Sum
@@ -41,12 +43,12 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         created = not self.pk
         super(Product, self).save(*args, **kwargs)
-        attribute_list = ProductAttribute.objects.filter(categories=self.category)
+        attribute_list = ProductAttribute.objects.filter(categories__in=self.categories.all())
         if created:
             for attribute in attribute_list:
                 if not attribute.is_choosable:
                     ProductAttributeValue.objects.create(product=self, attribute=attribute)
-        return self # TODO: неправильно добавляются выбираемые атрибуты для товаров
+        return self #TODO: неправильно добавляются выбираемые атрибуты для товаров
 
     class Meta:
         verbose_name = "товар"
@@ -65,7 +67,7 @@ class ProductVariant(models.Model):
     def save(self, *args, **kwargs):
         created = not self.pk
         super(ProductVariant, self).save(*args, **kwargs)
-        attribute_list = ProductAttribute.objects.filter(categories=self.product.category)
+        attribute_list = ProductAttribute.objects.filter(categories__in=self.product.categories.all())
         if created:
             for attribute in attribute_list:
                 if attribute.is_choosable:
@@ -249,6 +251,7 @@ class VariantsAttributeValue(AttributeValue):
 
 
 class Order(models.Model):
+    """Заказ для каждого варианты продуктов"""
     product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
     cart = models.ForeignKey('Cart', on_delete=models.CASCADE)
     count = models.SmallIntegerField(default=1)
@@ -270,7 +273,7 @@ class Cart(models.Model):
 
     def get_total_amount(self):
         total_amount = Order.objects.filter(cart=self).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
-
+        print(total_amount)
         # total_amount = self.products_variants.annotate(amount=ExpressionWrapper(F('product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
         return total_amount['value']
 
@@ -291,11 +294,30 @@ class ShippingMethod(models.Model):
 
 class PaymentMethod(models.Model):
     name = models.CharField(max_length=30, verbose_name='Название')
+    is_online = models.BooleanField(verbose_name="Онлайн оплата", default=False)
 
     def __str__(self):
         return self.name
 
 
+class Rent(models.Model):
+    class RentStatus(models.TextChoices):
+        paid = "PAD", "Оплачено"
+        using = "USG", "В использовании"
+        returned = "RTD", "Возвращено"
+        unpaid = "UPD", "Не оплачено"
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, verbose_name="Арендатор")
+    product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, verbose_name="Арендуемый продукт")
+    begin_date = models.DateField(auto_now_add=True, verbose_name="Старт аренды")
+    duration = models.PositiveSmallIntegerField(verbose_name="Длительность аренды (дни)")
+    rules_acception = models.BooleanField(verbose_name="Согласие с правилами проката")
+    status = models.CharField(choices=RentStatus.choices, max_length=3, verbose_name="Статус аренды", default=RentStatus.unpaid)
+
+    def get_rent_days_left(self):
+        end_date = self.begin_date + datetime.timedelta(days=self.duration)
+        days = (datetime.datetime.combine(end_date, datetime.time.min) - datetime.datetime.now()).days + 1 #TIME_DELTA
+        return days
 # class WareHouse(models.Model):
 #     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Продукт")
 #     count = models.PositiveSmallIntegerField(verbose_name="Количество")

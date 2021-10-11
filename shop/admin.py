@@ -3,7 +3,8 @@ from django.contrib import admin
 
 from .forms import InlineProductAttributeValueForm, ProductAttributeForm
 from .models import Category, Product, ProductPhoto, Tag, Customer, Brand, ProductAttribute, Cart, Address, \
-    ProductAttributeValue, ShippingMethod, PaymentMethod, ProductVariant, ChoosableAttributeOptions, VariantsAttributeValue
+    ProductAttributeValue, ShippingMethod, PaymentMethod,\
+    ProductVariant, ChoosableAttributeOptions, VariantsAttributeValue, Rent
 
 
 class InlineProductPhoto(admin.TabularInline):
@@ -167,7 +168,7 @@ admin.site.site_title = 'Winter sports'
 admin.site.site_header = 'Winter sports'
 admin.site.register(ProductAttribute, ProductAttributeAdmin)
 admin.site.register(ProductVariant, ProductVariantAdmin)
-
+admin.site.register(Rent)
 
 
 # TODO: усовершенствовать проверку паролей при регистрации пользователя на амдинской панели

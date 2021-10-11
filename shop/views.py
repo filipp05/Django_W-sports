@@ -2,8 +2,8 @@ from django.db.models import F, ExpressionWrapper, FloatField, Sum, Count, Prefe
 from django.db import connection
 from django.shortcuts import render, redirect, reverse
 from .models import Product, Category, Brand, Customer, Cart, Order, Address, ShippingMethod, PaymentMethod, \
-    ProductAttribute, ProductVariant, AttributeValue, VariantsAttributeValue
-from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm
+    ProductAttribute, ProductVariant, AttributeValue, VariantsAttributeValue, Rent
+from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm, ProductRentForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
 from django.forms import formset_factory, modelformset_factory
@@ -11,6 +11,45 @@ from hashlib import md5
 import requests
 from django.http import HttpResponse
 from django.http.response import Http404
+
+
+
+
+
+def get_product_variant(post_data, product_id):
+    data = dict(post_data)
+    data.pop('csrfmiddlewaretoken') # выкидываем из словаря токен, чтобы остались только значения атрибутов продуктов
+    query = Q()
+
+    for key in data:
+        try:
+            int_value = int(data[key][0])
+        except:
+            int_value = None
+
+        try:
+            float_value = float(data[key][0])
+        except:
+            float_value = None
+
+        query.add(Q(Q(attribute_id=int(key[10:])) & Q(
+            Q(int_value=int_value) & Q(float_value=float_value) & Q(str_value=data[key][0]))), Q.OR)
+
+    variants_values = VariantsAttributeValue.objects.filter(query,
+                                                    Q(product_variant__product__id=product_id))#.
+        # .prefetch_related(Prefetch("product_variant", ProductVariant.objects.)).distinct()
+    #print(variants_values)
+
+    variants = variants_values.values("product_variant").distinct()
+
+    # for variant in variants_values:
+    #      print(variant.attribute, variant.str_value, variant.product_variant.id)
+
+    if len(variants) != 1 or variants_values.count() != len(data.keys()):
+        return None
+
+    return ProductVariant.objects.prefetch_related(Prefetch("variant_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant"))\
+        .annotate(value=F("str_value")))).get(id=variants[0]["product_variant"])
 
 
 def index(request):
@@ -105,30 +144,12 @@ def get_cart(user):
 def add_to_cart(request, product_id):
     if request.method == "POST":
         current_cart = get_cart(request.user)
-        data = dict(request.POST)
-        data.pop('csrfmiddlewaretoken')
-        query = Q()
 
-        for key in data:
-            try:
-                int_value=int(data[key][0])
-            except:
-                int_value = None
+        variant = get_product_variant(request.POST, product_id)
 
-            try:
-                float_value=float(data[key][0])
-            except:
-                float_value = None
+        if not variant:
+            return redirect(reverse("Wsports:product_url", kwargs={"product_name": Product.objects.get(id=product_id).name}))
 
-            query.add(Q(Q(attribute_id=int(key[10:])) & Q(Q(int_value=int_value) & Q(float_value=float_value) & Q(str_value=data[key][0]))), Q.OR)
-
-        variant = VariantsAttributeValue.objects.filter(query, Q(product_variant__product__id=product_id)).first().product_variant
-        print(variant)
-        # product = Product.objects.get(id=product_id)
-        #
-        # for attr in request.POST.keys():
-        #     attr_id = attr[10:]
-        #     print(attr_id)
         try:
             product_cart = Order.objects.get(cart=current_cart, product_variant=variant)
             product_cart.count += 1
@@ -199,18 +220,18 @@ def shipping_and_payment(request):
     return render(request, 'shipping_and_payment.html',
                   {
                       'address_form': address_form,
-                      'products': cart.products.all(),
+                      'products': cart.products_variants.all(),
                       'address_list': address_list,
                       'checkout_form': checkout_form,
                   })
 
 
 @login_required
-def delete_from_cart(request, product_id):
+def delete_from_cart(request, product_variant_id):
     cart = get_cart(request.user)
-    current_product = cart.products.get(id=product_id)
-    cart.products.remove(current_product)
-# remove для поля ManyToMany удаляет из списка связанных объектов переданный объект
+    current_product_variant = cart.products_variants.get(id=product_variant_id)
+    cart.products_variants.remove(current_product_variant)
+    # remove для поля ManyToMany удаляет из списка связанных объектов переданный объект ((add или remove))
     return redirect(reverse('Wsports:cart_url'))
 
 
@@ -221,7 +242,7 @@ def change_count(request, product_variant_id, count):
 
 
     if order.count == 1 and int(count) == -1:
-        return redirect(reverse('Wsports:product_delete_url', kwargs={'product_id': product_variant_id}))
+        return redirect(reverse('Wsports:product_delete_url', kwargs={'product_variant_id': product_variant_id}))
 
     order.count = F('count') + int(count)
     order.save()
@@ -247,9 +268,13 @@ def checkout(request):
     #     'SignatureValue': controll_summ.hexdigest(),
     #     'lsTest': 1,
     # })
-    payment_url = f"{url}?MerchantLogin={login}&OutSum={summ}&InvoiceID={order_num}&Description={description}&SignatureValue={controll_summ.hexdigest()}&IsTest=1"
+    if not cart.payment_method.is_online:
+        payment_url = reverse("Wsports:order_finish_url")
+    else:
+        payment_url = f"{url}?MerchantLogin={login}&OutSum={summ}&InvoiceID={order_num}&Description={description}&SignatureValue={controll_summ.hexdigest()}&IsTest=1"
 
-    product_set = cart.products.annotate(ordered_count=F('productcart__count'), amount=ExpressionWrapper(F('price') * F('count'),
+
+    product_variant_set = cart.products_variants.annotate(ordered_count=F('order__count'), amount=ExpressionWrapper(F('product__price') * F('order__count'),
                                                                                             FloatField())).all()
     shipping_method = cart.shipping_method
     payment_method = cart.payment_method
@@ -260,7 +285,7 @@ def checkout(request):
                       'shipping_method': shipping_method,
                       'payment_method': payment_method,
                       'address': address,
-                      'product_set': product_set,
+                      'product_variant_set': product_variant_set,
                       'payment_url': payment_url,
                   })
 
@@ -290,6 +315,17 @@ def payment_success(request):
     if control_summ != rb_control_summ:
         return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
 
+    cart = get_cart(user=request.user)
+    cart.is_paid = True
+    cart.save()
+
+    return redirect(reverse("Wsports:order_finish_url"))
+
+
+def order_finish(request):
+    cart = get_cart(user=request.user)
+    cart.is_checkouted = True
+    cart.save()
     return render(request, 'success.html', {'cart': cart})
 
 
@@ -327,8 +363,13 @@ def payment_result(request):
 
 @login_required
 def profile(request):
-    cart = get_cart(user=request.user)
-    return render(request, 'profile.html', {'cart': cart})
+    carts = Cart.objects.filter(owner=request.user, is_checkouted=True)\
+        .prefetch_related(Prefetch("order_set", Order.objects.prefetch_related(Prefetch("product_variant", ProductVariant.objects\
+        .prefetch_related(Prefetch("variant_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant"))\
+        .annotate(value=F("str_value"))))))))\
+        .order_by("-created_at")
+    rent_set = Rent.objects.filter(customer=request.user).exclude(status=Rent.RentStatus.returned).order_by("-begin_date")
+    return render(request, 'profile.html', {'carts': carts, 'rent_set': rent_set})
 
 
 def get_attribute_format(request):
@@ -338,9 +379,37 @@ def get_attribute_format(request):
     return Http404("Not found...")
 
 
-def rent_product(request):
-    pass
+def rent_product(request, product_id):
+    variant = get_product_variant(request.POST, product_id)
+    form = ProductRentForm()
 
+
+    #Rent.objects.create(customer=request.user, product_variant=variant, durations)
+
+    return render(request, "rent.html", {"variant": variant, "form": form})
+
+
+def accept_product_rent(request, product_variant_id):
+    if request.method == "POST":
+        form = ProductRentForm(request.POST)
+        if form.is_valid():
+            rent = form.save(commit=False)
+            rent.customer = request.user
+            rent.product_variant = ProductVariant.objects.get(id=product_variant_id)
+            rent.save()
+            return redirect(reverse("Wsports:profile"))
+        else:
+            print(form.errors)
+    raise Http404("<h1>Упс, этой страницы не существует. <a href='/'>Перейти на главную</a></h1>")
+
+
+def handler404(request, exception):
+    raise Http404("<h1>Упс, этой страницы не существует. <a href='/'>Перейти на главную</a></h1>")
+
+
+def delete_address(request, address_id):
+    Address.objects.get(id=address_id).delete()
+    return redirect(reverse("Wsports:profile"))
 # TODO: в шаблоне чекаута переделать вывод заказанного количества товаров - все остальное работает корректно
 # TODO: на странице продукта выводить атрибуты со значениями для данного продукта
 # TODO: взять сторонний сервис с погодой для рекомендаций продуктов

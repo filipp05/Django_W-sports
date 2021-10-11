@@ -20,19 +20,19 @@
             </div>
         </div>
          <hr>
-        {% for product in product_set %}
+        {% for product_variant in product_variant_set %}
             <div class="row mt-2">
                 <div class="col-3">
-                    {{ product.name|truncatewords:5 }}
+                    {{ product_variant.product.name|truncatewords:5 }}
                 </div>
                 <div class="col-3">
-                    {{ product.price }}
+                    {{ product_variant.product.price }}
                 </div>
                 <div class="col-3">
-                    {{ product.ordered_count }}
+                    {{ product_variant.ordered_count }}
                 </div>
                 <div class="col-3">
-                    {{ product.amount }}
+                    {{ product_variant.amount }}
                 </div>
             </div>
         {% endfor %}

@@ -14,7 +14,7 @@ urlpatterns = [
     path('accounts/profile/', views.profile, name='profile'),
     path('accounts/register/', views.register, name='register'),
     path('add_to_cart/<int:product_id>', views.add_to_cart, name='add_to_cart_url'),
-    path('cart/delete/<int:product_id>/', views.delete_from_cart, name='product_delete_url'),
+    path('cart/delete/<int:product_variant_id>/', views.delete_from_cart, name='product_delete_url'),
     path('cart/', views.cart, name='cart_url'),
     path('shipping_and_payment/', views.shipping_and_payment, name='shipping_and_payment_url'),
     path('change_count/<int:product_variant_id>/<str:count>/', views.change_count, name='change_count_url'),
@@ -24,8 +24,10 @@ urlpatterns = [
     path('failure/', views.payment_failure, name='payment_failure_url'),
     path('result/', views.payment_result, name="payment_result_url"),
     path('get_attribute_format/', views.get_attribute_format, name="get_attribute_format_url"),
-    path('rent_product/', views.rent_product, name="rent_product")
-
+    path('rent_product/<int:product_id>/', views.rent_product, name="rent_product"),
+    path('rent/<int:product_variant_id>/', views.accept_product_rent, name="rent_acception_url"),
+    path('order_finish/', views.order_finish, name="order_finish_url"),
+    path('delete_address/<int:address_id>/', views.delete_address, name="delete_address_url")
 
 ]
 

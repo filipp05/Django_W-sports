@@ -18,7 +18,7 @@
         <p>Доступные категории: </p>
         <ul class="list-group">
         {% for product in brand_product_list %}
-            <li class="list-group-item">{{ product.category }}</li>
+            <li class="list-group-item">{{ product.categories }}</li> {% comment %} переделать {% endcomment %}
         {% endfor %}
         </ul>
         {% include 'product_list.html' %}
