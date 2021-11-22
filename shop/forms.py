@@ -104,7 +104,8 @@ class InlineProductAttributeValueForm(forms.ModelForm):
             self["value"].initial = attribute_value.float_value
         elif attribute.type == ProductAttribute.AttributeType.VARIANTS:
             self.fields["value"] = forms.ChoiceField(required=False)
-            self.fields["value"].choices = [(item, item) for item in attribute.choosableattributeoptions_set.values_list("value", flat=True)]
+            self.fields["value"].choices = [(item, item) for item in
+                                            attribute.choosableattributeoptions_set.values_list("value", flat=True)]
             self["value"].initial = attribute_value.str_value
         elif attribute.type == ProductAttribute.AttributeType.STRING:
             self.fields["value"] = forms.CharField(required=False)
@@ -128,14 +129,14 @@ class InlineProductAttributeValueForm(forms.ModelForm):
 
     class Meta:
         model = ProductAttributeValue
-        fields = ("attribute", )
+        fields = ("attribute",)
         widgets = {"attribute": forms.HiddenInput(), }
 
 
 class ProductAttributeForm(forms.ModelForm):
     def _save_m2m(self, *args, **kwargs):
         super()._save_m2m(*args, **kwargs)
-        product_list = Product.objects.filter(category__in=self.instance.categories.all())
+        product_list = Product.objects.filter(categories__in=self.instance.categories.all())
         for product in product_list:
             if not ProductAttributeValue.objects.filter(product=product, attribute=self.instance).exists():
                 ProductAttributeValue.objects.create(product=product, attribute=self.instance)
@@ -151,7 +152,6 @@ class ProductRentForm(forms.ModelForm):
         fields = ("duration", "rules_acception")
 
 
-
 # class InlineVariantAttributeValueForm(InlineProductAttributeValueForm):
 #     # count = forms.IntegerField(min_value=0)
 #
@@ -160,17 +160,5 @@ class ProductRentForm(forms.ModelForm):
 #         fields = ("attribute", )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+class CityForm(forms.Form):
+    city = forms.CharField()

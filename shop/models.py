@@ -3,7 +3,8 @@ import datetime
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db.models import F, ExpressionWrapper, FloatField, Sum
-#TODO: Модель пользователя: рост, вес, размер ноги, навыки катания и тп... Мази по температуре, фильтры масок по освещенности
+# TODO: Модель пользователя: рост, вес, размер ноги, навыки катания и тп... Мази по температуре,
+#  фильтры масок по освещенности
 
 # Полиморфизм гарантирует, что объект может вести себя по-разному в разных условиях
 
@@ -48,7 +49,6 @@ class Product(models.Model):
             for attribute in attribute_list:
                 if not attribute.is_choosable:
                     ProductAttributeValue.objects.create(product=self, attribute=attribute)
-        return self #TODO: неправильно добавляются выбираемые атрибуты для товаров
 
     class Meta:
         verbose_name = "товар"
@@ -274,8 +274,18 @@ class Cart(models.Model):
     def get_total_amount(self):
         total_amount = Order.objects.filter(cart=self).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
         print(total_amount)
-        # total_amount = self.products_variants.annotate(amount=ExpressionWrapper(F('product__price') * F('count'), FloatField())).aggregate(value=Sum(F("amount")))
+        # total_amount = self.products_variants.annotate(amount=ExpressionWrapper(F('product__price') * F('count')
+        # , FloatField())).aggregate(value=Sum(F("amount")))
         return total_amount['value']
+
+    @staticmethod
+    def get_current_cart(user):
+        current_user_carts = user.cart_list.filter(is_paid=False).order_by('-created_at')
+        if current_user_carts:
+            current_cart = current_user_carts[0]
+        else:
+            current_cart = Cart.objects.create(owner=user)
+        return current_cart
 
     def __str__(self):
         return 'корзина ' + str(self.owner)

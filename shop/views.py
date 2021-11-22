@@ -1,9 +1,14 @@
+import json
+
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import F, ExpressionWrapper, FloatField, Sum, Count, Prefetch, Q
 from django.db import connection
 from django.shortcuts import render, redirect, reverse
+from django.views import View
+
 from .models import Product, Category, Brand, Customer, Cart, Order, Address, ShippingMethod, PaymentMethod, \
     ProductAttribute, ProductVariant, AttributeValue, VariantsAttributeValue, Rent
-from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm, ProductRentForm
+from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm, ProductRentForm, CityForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
 from django.forms import formset_factory, modelformset_factory
@@ -12,77 +17,47 @@ import requests
 from django.http import HttpResponse
 from django.http.response import Http404
 
+from .utils import get_product_variant
 
 
+class IndexView(View):
+    def get(self, request):
+        latest_product_list = Product.objects.only('name', 'description', 'price').order_by('-published')[:3]
+        category_list = Category.objects.all()
+        brand_list = Brand.objects.only('name', 'description').all()
+        print(brand_list.query, latest_product_list.query)
+        form = CityForm()
+        return render(request, 'index.html',
+                      {'category_list': category_list, 'brand_list': brand_list, 'product_list': latest_product_list,
+                       "city_form": form})
 
 
-def get_product_variant(post_data, product_id):
-    data = dict(post_data)
-    data.pop('csrfmiddlewaretoken') # выкидываем из словаря токен, чтобы остались только значения атрибутов продуктов
-    query = Q()
-
-    for key in data:
-        try:
-            int_value = int(data[key][0])
-        except:
-            int_value = None
-
-        try:
-            float_value = float(data[key][0])
-        except:
-            float_value = None
-
-        query.add(Q(Q(attribute_id=int(key[10:])) & Q(
-            Q(int_value=int_value) & Q(float_value=float_value) & Q(str_value=data[key][0]))), Q.OR)
-
-    variants_values = VariantsAttributeValue.objects.filter(query,
-                                                    Q(product_variant__product__id=product_id))#.
-        # .prefetch_related(Prefetch("product_variant", ProductVariant.objects.)).distinct()
-    #print(variants_values)
-
-    variants = variants_values.values("product_variant").distinct()
-
-    # for variant in variants_values:
-    #      print(variant.attribute, variant.str_value, variant.product_variant.id)
-
-    if len(variants) != 1 or variants_values.count() != len(data.keys()):
-        return None
-
-    return ProductVariant.objects.prefetch_related(Prefetch("variant_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant"))\
-        .annotate(value=F("str_value")))).get(id=variants[0]["product_variant"])
+class BrandProductsView(View):
+    def get(self, request, brand_name):
+        current_brand = Brand.objects.prefetch_related("product_set").get(name=brand_name)
+        # brand_product_list = Product.objects.filter(brand=current_brand)
+        brand_categories = Category.objects.filter(product__brand=current_brand).distinct()
+        print(brand_categories)
+        return render(request, 'branded.html', {'current_brand': current_brand,
+                                                "category_list": brand_categories})
 
 
-def index(request):
-    latest_product_list = Product.objects.only('name', 'description', 'price').order_by('-published')[:3]
-    category_list = Category.objects.all()
-    brand_list = Brand.objects.only('name', 'description').all()
-    print(brand_list.query, latest_product_list.query)
-    return render(request, 'index.html', {'category_list': category_list, 'brand_list': brand_list, 'product_list': latest_product_list})
+class CategoryProductsView(View):
+    def get(self, request, category_name):
+        current_category = Category.objects.get(name=category_name)
+        category_product_list = Product.objects.filter(categories=current_category)
+        return render(request, 'categorical.html', {'product_list': category_product_list,
+                                                    'current_category': current_category})
 
 
-def brand_products(request, brand_name):
-    current_brand = Brand.objects.get(name=brand_name)
-    brand_product_list = Product.objects.filter(brand=current_brand)
-    return render(request, 'branded.html', {'product_list': brand_product_list, 'current_brand': current_brand})
-
-
-def category_products(request, category_name):
-    current_category = Category.objects.get(name=category_name)
-    category_product_list = Product.objects.filter(category=current_category)
-    return render(request, 'categorical.html', {'product_list': category_product_list,
-                                                'current_category': current_category})
-
-
-def product_detail(request, product_name, ):
-    #    if not request.user.is_authenticated:
-    #        return redirect("/accounts/login/?next=/product/" + product_name + "/")
-
-    product = Product.objects.only('description', 'price', 'name', 'photo', 'brand', 'categories')\
-                            .select_related('brand')\
-                            .prefetch_related('recommendations', 'attribute_values', "productvariant_set", "categories")\
-                            .annotate(count=Sum("productvariant__count"))\
-                            .get(name=product_name)
-    return render(request, 'product_detail.html', {'product': product,})
+class ProductDetailView(View):
+    def get(self, request, product_name):
+        product = Product.objects.only('description', 'price', 'name', 'photo', 'brand', 'categories') \
+            .select_related('brand') \
+            .prefetch_related('recommendations', 'attribute_values', "productvariant_set", "categories") \
+            .annotate(count=Sum("productvariant__count")) \
+            .get(name=product_name)
+        return render(request, 'product_detail.html', {'product': product, })
 
 
 # def test_form(request):
@@ -113,9 +88,14 @@ def test_model_form(request):
     return render(request, 'test_form.html', {'form_set': form_set})
 
 
-def register(request):
-    if request.method == 'POST':
+class RegisterView(View):
+    def get(self, request):
+        form = CustomerForm()
+        return render(request, 'registration/register.html', {'form': form})
+
+    def post(self, request):
         form = CustomerForm(request.POST)
+
         if form.is_valid():
             customer = form.save(commit=False)
             customer.set_password(form.cleaned_data['password'])
@@ -124,31 +104,17 @@ def register(request):
             if user is not None:
                 login(request, user)
             return redirect('/')
-        else:
-            print(form.errors)
-    else:
-        form = CustomerForm()
-    return render(request, 'registration/register.html', {'form': form})
 
 
-def get_cart(user):
-    current_user_carts = user.cart_list.filter(is_paid=False).order_by('-created_at')
-    if current_user_carts:
-        current_cart = current_user_carts[0]
-    else:
-        current_cart = Cart.objects.create(owner=user)
-    return current_cart
-
-
-@login_required
-def add_to_cart(request, product_id):
-    if request.method == "POST":
-        current_cart = get_cart(request.user)
+class AddToCartView(LoginRequiredMixin, View):
+    def post(self, request, product_id):
+        current_cart = Cart.get_current_cart(request.user)
 
         variant = get_product_variant(request.POST, product_id)
-
+        print(request.POST, product_id)
         if not variant:
-            return redirect(reverse("Wsports:product_url", kwargs={"product_name": Product.objects.get(id=product_id).name}))
+            return redirect(
+                reverse("Wsports:product_url", kwargs={"product_name": Product.objects.get(id=product_id).name}))
 
         try:
             product_cart = Order.objects.get(cart=current_cart, product_variant=variant)
@@ -156,49 +122,58 @@ def add_to_cart(request, product_id):
             product_cart.save()
         except Order.DoesNotExist:
             product_cart = Order.objects.create(cart=current_cart, product_variant=variant)
-    return redirect(reverse('Wsports:cart_url'))
 
-    # reverse вычисляет по названию урла адрес
-
-
-@login_required
-def cart(request):
-    cart = get_cart(request.user)
-    #order_set = Order.objects.filter(cart=cart).annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())).prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(Prefetch("attribute_values", VariantsAttributeValue.objects.all()))))
-    order_set = Order.objects.filter(cart=cart)\
-        .annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField()))\
-        .prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(Prefetch("variant_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant"))\
-        .annotate(value=F("str_value"))))))
-                                                                                                                                        #annotate(value=F("str_value"))))))
-    # for order_num, order in enumerate(order_set):
-    #     attributes = order_set[order_num].product_variant.attribute_values.all()
-    #     for attr_num, attr in enumerate(attributes):
-    #         value = VariantsAttributeValue.objects.get(attribute=attr, product_variant=order.product_variant)
-    #         attributes[attr_num].__setattr__("value", value.get_value())
-    #     order_set[order_num].product_variant.__setattr__("attributes", attributes)
-    return render(request, 'cart.html', {'cart': cart, 'order_set': order_set})
-    # aggregate вычисляет на основе значений запроса конкретные результаты и возвращает только их
-    # annotate добавляет вычисленного значения в обЪекту модели при выполнении запроса
-    # ExpressionWrapper и его атрибут output_field созданы для корректного вывода и явного преобразования(таких куча)
+        return redirect(reverse('Wsports:cart_url'))
 
 
-@login_required
-def shipping_and_payment(request):
-    cart = get_cart(request.user)
+class CartView(LoginRequiredMixin, View):
+    def get(self, request):
+        cart = Cart.get_current_cart(request.user)
+        order_set = Order.objects.filter(cart=cart) \
+            .annotate(amount=ExpressionWrapper(F('product_variant__product__price') * F('count'), FloatField())) \
+            .prefetch_related(Prefetch("product_variant", ProductVariant.objects.prefetch_related(
+            Prefetch("variant_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant")) \
+                     .annotate(value=F("str_value"))))))
+        return render(request, 'cart.html', {'cart': cart, 'order_set': order_set})
+        # aggregate вычисляет на основе значений запроса конкретные результаты и возвращает только их
+        # annotate добавляет вычисленного значения в обЪекту модели при выполнении запроса
+        # ExpressionWrapper и его атрибут output_field созданы для корректного вывода и явного преобразования(таких куча)
 
-    address = None
-    if request.method == 'POST':
+
+class ShippingAndPaymentView(LoginRequiredMixin, View):
+
+    def get(self, request, address_form=None, checkout_form=None):
+        cart = Cart.get_current_cart(request.user)
+
+        if not address_form and not checkout_form:
+            address_form = AddressForm()
+            checkout_form = CheckoutForm()
+
+        address_list = request.user.address_set.all()
+        return render(request, 'shipping_and_payment.html',
+                      {
+                          'address_form': address_form,
+                          'products': cart.products_variants.all(),
+                          'address_list': address_list,
+                          'checkout_form': checkout_form,
+                      })
+
+    def post(self, request):
+        cart = Cart.get_current_cart(request.user)
         checkout_form = CheckoutForm(data=request.POST, instance=cart)
+        address_form = AddressForm(request.POST)
         if checkout_form.is_valid():
-            if 'existing_address' in request.POST and request.POST['existing_address']\
+            address = None
+            if 'existing_address' in request.POST and request.POST['existing_address'] \
                     and checkout_form.cleaned_data['shipping_method'] != ShippingMethod.objects.get(name='Самовывоз'):
                 address = Address.objects.get(id=request.POST['existing_address'])
             elif checkout_form.cleaned_data['shipping_method'] != ShippingMethod.objects.get(name='Самовывоз'):
-                address_form = AddressForm(request.POST)
                 if address_form.is_valid():
                     address = address_form.save(commit=False)
                     address.customer = request.user
                     address.save()
+                else:
+                    return self.get(request, address_form=address_form, checkout_form=checkout_form)
 
             if address:
                 cart = checkout_form.save(commit=False)
@@ -207,190 +182,205 @@ def shipping_and_payment(request):
             else:
                 checkout_form.save()
             return redirect(reverse('Wsports:checkout_url'))
-    else:
-        address_form = AddressForm()
-
-#        payment_form = PaymentMethodForm()
-#        shipping_form = ShippingMethodForm()
-#        shipping_formset = modelformset_factory(model=ShippingMethod, form=ShippingMethodForm, extra=0)
-        checkout_form = CheckoutForm()
-
-    # Address.objects.filter(customer=request.user)
-    address_list = request.user.address_set.all()
-    return render(request, 'shipping_and_payment.html',
-                  {
-                      'address_form': address_form,
-                      'products': cart.products_variants.all(),
-                      'address_list': address_list,
-                      'checkout_form': checkout_form,
-                  })
+        return self.get(request, address_form=address_form, checkout_form=checkout_form)
 
 
-@login_required
-def delete_from_cart(request, product_variant_id):
-    cart = get_cart(request.user)
-    current_product_variant = cart.products_variants.get(id=product_variant_id)
-    cart.products_variants.remove(current_product_variant)
-    # remove для поля ManyToMany удаляет из списка связанных объектов переданный объект ((add или remove))
-    return redirect(reverse('Wsports:cart_url'))
+# как тут написать класс оптимально, чтобы вызов корзины не повторялся и тд???????
 
 
-@login_required
-def change_count(request, product_variant_id, count):
-    cart = get_cart(request.user)
-    order = Order.objects.get(cart=cart, product_variant__id=product_variant_id)
+class DeleteFromCartView(LoginRequiredMixin, View):
+    def get(self, request, product_variant_id):
+        cart = Cart.get_current_cart(request.user)
+        current_product_variant = cart.products_variants.get(id=product_variant_id)
+        cart.products_variants.remove(current_product_variant)
+        # remove для поля ManyToMany удаляет из списка связанных объектов переданный объект ((add или remove))
+        return redirect(reverse('Wsports:cart_url'))
 
 
-    if order.count == 1 and int(count) == -1:
-        return redirect(reverse('Wsports:product_delete_url', kwargs={'product_variant_id': product_variant_id}))
+class ChangeCountView(LoginRequiredMixin, View):
+    def get(self, request, product_variant_id, count):
+        cart = Cart.get_current_cart(request.user)
+        order = Order.objects.get(cart=cart, product_variant__id=product_variant_id)
 
-    order.count = F('count') + int(count)
-    order.save()
-    return redirect(reverse('Wsports:cart_url'))
+        if order.count == 1 and int(count) == -1:
+            return redirect(reverse('Wsports:product_delete_url', kwargs={'product_variant_id': product_variant_id}))
 
-
-@login_required
-def checkout(request):
-    cart = get_cart(request.user)
-    url = 'https://auth.robokassa.ru/Merchant/Index.aspx'
-    login = 'Wsports.ru'
-    summ = cart.get_total_amount()
-    order_num = cart.id
-    description = 'Оплата покупки в магазине Wsports'
-    pass_1 = '7997119email'
-    controll_summ = md5(bytes("{0}:{1}:{2}:{3}".format(login, str(summ), str(order_num), pass_1), 'UTF-8'))
-
-    # response = requests.post(url, data={
-    #     'MerchantLogin': login,
-    #     'OutSum': summ,
-    #     'InvoiceId': order_num,
-    #     'Description': description,
-    #     'SignatureValue': controll_summ.hexdigest(),
-    #     'lsTest': 1,
-    # })
-    if not cart.payment_method.is_online:
-        payment_url = reverse("Wsports:order_finish_url")
-    else:
-        payment_url = f"{url}?MerchantLogin={login}&OutSum={summ}&InvoiceID={order_num}&Description={description}&SignatureValue={controll_summ.hexdigest()}&IsTest=1"
+        order.count = F('count') + int(count)
+        order.save()
+        return redirect(reverse('Wsports:cart_url'))
 
 
-    product_variant_set = cart.products_variants.annotate(ordered_count=F('order__count'), amount=ExpressionWrapper(F('product__price') * F('order__count'),
-                                                                                            FloatField())).all()
-    shipping_method = cart.shipping_method
-    payment_method = cart.payment_method
-    address = cart.address
-    return render(request, 'checkout.html',
-                  {
-                      'cart': cart,
-                      'shipping_method': shipping_method,
-                      'payment_method': payment_method,
-                      'address': address,
-                      'product_variant_set': product_variant_set,
-                      'payment_url': payment_url,
-                  })
+class CheckoutView(View, LoginRequiredMixin):
+    def get(self, request):
+        cart = Cart.get_current_cart(request.user)
+        url = 'https://auth.robokassa.ru/Merchant/Index.aspx'
+        login = 'Wsports.ru'
+        summ = cart.get_total_amount()
+        order_num = cart.id
+        description = 'Оплата покупки в магазине Wsports'
+        pass_1 = '7997119email'
+        controll_summ = md5(bytes("{0}:{1}:{2}:{3}".format(login, str(summ), str(order_num), pass_1), 'UTF-8'))
+
+        if not cart.payment_method.is_online:
+            payment_url = reverse("Wsports:order_finish_url")
+        else:
+            payment_url = f"{url}?MerchantLogin={login}&OutSum={summ}&InvoiceID={order_num}&Description={description}&SignatureValue={controll_summ.hexdigest()}&IsTest=1"
+
+        product_variant_set = cart.products_variants.annotate(ordered_count=F('order__count'), amount=ExpressionWrapper(
+            F('product__price') * F('order__count'),
+            FloatField())).all()
+
+        shipping_method = cart.shipping_method
+        payment_method = cart.payment_method
+        address = cart.address
+        return render(request, 'checkout.html',
+                      {
+                          'cart': cart,
+                          'shipping_method': shipping_method,
+                          'payment_method': payment_method,
+                          'address': address,
+                          'product_variant_set': product_variant_set,
+                          'payment_url': payment_url,
+                      })
 
 
-@login_required
-def purchase(request):
-    cart = get_cart(user=request.user)
-    cart.is_checkouted = True
-    cart.save()
-    return render(request, 'purchase.html',
-                {
-                        'cart': cart,
-                })
+class PurchaseView(LoginRequiredMixin, View):
+    def get(self, request):
+        cart = Cart.get_current_cart(user=request.user)
+        cart.is_checkouted = True
+        cart.save()
+        return render(request, 'purchase.html',
+                      {
+                          'cart': cart,
+                      })
 
 
-@login_required
-def payment_success(request):
-    if request.method != 'GET':
+class PaymentSuccessView(LoginRequiredMixin, View):
+    def get(self, request):
+        pass1 = '7997119email'
+        summ = request.GET['OutSum']
+        order_num = request.GET['InvId']
+        control_summ = request.GET['SignatureValue']
+        rb_control_summ = md5("{0}:{1}:{2}".format(summ, order_num, pass1).encode('UTF-8')).hexdigest()
+
+        if control_summ != rb_control_summ:
+            return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
+
+        cart = Cart.get_current_cart(user=request.user)
+        cart.is_paid = True
+        cart.save()
+
+        return redirect(reverse("Wsports:order_finish_url"))
+
+
+class PaymentSuccessView(LoginRequiredMixin, View):
+    def post(self, request):
         return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
 
-    pass1 = '7997119email'
-    summ = request.GET['OutSum']
-    order_num = request.GET['InvId']
-    control_summ = request.GET['SignatureValue']
-    rb_control_summ = md5("{0}:{1}:{2}".format(summ, order_num, pass1).encode('UTF-8')).hexdigest()
+    # pass1 = '7997119email'
+    # summ = request.GET['OutSum']
+    # order_num = request.GET['InvId']
+    # control_summ = request.GET['SignatureValue']
+    # rb_control_summ = md5("{0}:{1}:{2}".format(summ, order_num, pass1).encode('UTF-8')).hexdigest()
+    #
+    # if control_summ != rb_control_summ:
+    #     return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
+    #
+    # cart = get_cart(user=request.user)
+    # cart.is_paid = True
+    # cart.save()
+    #
+    # return redirect(reverse("Wsports:order_finish_url"))
 
-    if control_summ != rb_control_summ:
+
+class OrderFinishView(View):
+    def get(self, request):
+        cart = Cart.get_current_cart(user=request.user)
+        cart.is_checkouted = True
+        cart.save()
+        return render(request, 'success.html', {'cart': cart})
+
+
+# def order_finish(request):
+#     cart = get_cart(user=request.user)
+#     cart.is_checkouted = True
+#     cart.save()
+#     return render(request, 'success.html', {'cart': cart})
+
+
+class PaymentFailureView(LoginRequiredMixin, View):
+    def get(self, request):
+        inv_order_num = request.GET["InvId"]
+        return render(request, 'payment_failure.html', {'order': inv_order_num})
+
+
+class PaymentFailure(LoginRequiredMixin, View):
+    def post(self, request):
         return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
 
-    cart = get_cart(user=request.user)
-    cart.is_paid = True
-    cart.save()
-
-    return redirect(reverse("Wsports:order_finish_url"))
+    def get(self, request):
+        inv_order_num = request.GET["InvId"]
+        return render(request, 'payment_failure.html', {'order': inv_order_num})
 
 
-def order_finish(request):
-    cart = get_cart(user=request.user)
-    cart.is_checkouted = True
-    cart.save()
-    return render(request, 'success.html', {'cart': cart})
+class PaymentResultView(View):
+    def get(self, request):
+        pass2 = '7997119ymail'
+        summ = request.GET['OutSum']
+        order_num = request.GET['InvId']
+        control_summ = request.GET['SignatureValue']
+        rb_control_summ = md5("{0}:{1}:{2}".format(summ, order_num, pass2).encode('UTF-8')).hexdigest()
+
+        if control_summ != rb_control_summ:
+            return HttpResponse(content="", status=400)
+
+        cart = Cart.get_current_cart(user=request.user)
+        cart.is_paid = True
+        cart.save()
+        products_to_update = []
+
+        for product in cart.products.all():
+            product.count -= Order.objects.get(product=product, cart=cart).count
+            products_to_update.append(product)
+        Product.objects.bulk_update(products_to_update, fields=('count',))
+
+        return HttpResponse(content="", status=200)
 
 
-@login_required
-def payment_failure(request):
-    if request.method != 'GET':
-        return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
-
-    inv_order_num = request.GET["InvId"]
-    return render(request, 'payment_failure.html', {'order': inv_order_num})
-
-
-def payment_result(request):
-    pass2 = '7997119ymail'
-    summ = request.GET['OutSum']
-    order_num = request.GET['InvId']
-    control_summ = request.GET['SignatureValue']
-    rb_control_summ = md5("{0}:{1}:{2}".format(summ, order_num, pass2).encode('UTF-8')).hexdigest()
-
-    if control_summ != rb_control_summ:
-        return HttpResponse(content="", status=400)
-
-    cart = get_cart(user=request.user)
-    cart.is_paid = True
-    cart.save()
-    products_to_update = []
-
-    for product in cart.products.all():
-        product.count -= Order.objects.get(product=product, cart=cart).count
-        products_to_update.append(product)
-    Product.objects.bulk_update(products_to_update, fields=('count',))
-
-    return HttpResponse(content="", status=200)
+class ProfileView(LoginRequiredMixin, View):
+    def get(self, request):
+        carts = Cart.objects.filter(owner=request.user, is_checkouted=True) \
+            .prefetch_related(
+            Prefetch("order_set", Order.objects.prefetch_related(Prefetch("product_variant", ProductVariant.objects \
+                                                                          .prefetch_related(
+                Prefetch("variant_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant")) \
+                         .annotate(value=F("str_value")))))))) \
+            .order_by("-created_at")
+        rent_set = Rent.objects.filter(customer=request.user).exclude(status=Rent.RentStatus.returned).order_by(
+            "-begin_date")
+        return render(request, 'profile.html', {'carts': carts, 'rent_set': rent_set})
 
 
-@login_required
-def profile(request):
-    carts = Cart.objects.filter(owner=request.user, is_checkouted=True)\
-        .prefetch_related(Prefetch("order_set", Order.objects.prefetch_related(Prefetch("product_variant", ProductVariant.objects\
-        .prefetch_related(Prefetch("variant_values", VariantsAttributeValue.objects.filter(product_variant=F("product_variant"))\
-        .annotate(value=F("str_value"))))))))\
-        .order_by("-created_at")
-    rent_set = Rent.objects.filter(customer=request.user).exclude(status=Rent.RentStatus.returned).order_by("-begin_date")
-    return render(request, 'profile.html', {'carts': carts, 'rent_set': rent_set})
+class GetAttributeFormatView(View):
+    def get(self, request):
+        if request.is_ajax and "id" in request.GET:
+            attribute = ProductAttribute.objects.get(id=request.GET["id"])
+            return HttpResponse(attribute.type)
+        return Http404("Not found...")
 
 
-def get_attribute_format(request):
-    if request.is_ajax and "id" in request.GET:
-        attribute = ProductAttribute.objects.get(id=request.GET["id"])
-        return HttpResponse(attribute.type)
-    return Http404("Not found...")
+class RentProductView(View):
+    def get(self, request, product_id):
+        variant = get_product_variant(request.POST, product_id)
+        form = ProductRentForm()
+
+        # Rent.objects.create(customer=request.user, product_variant=variant, durations)
+
+        return render(request, "rent.html", {"variant": variant, "form": form})
 
 
-def rent_product(request, product_id):
-    variant = get_product_variant(request.POST, product_id)
-    form = ProductRentForm()
-
-
-    #Rent.objects.create(customer=request.user, product_variant=variant, durations)
-
-    return render(request, "rent.html", {"variant": variant, "form": form})
-
-
-def accept_product_rent(request, product_variant_id):
-    if request.method == "POST":
+class AcceptProductRentView(View):
+    def post(self, request, product_variant_id):
         form = ProductRentForm(request.POST)
         if form.is_valid():
             rent = form.save(commit=False)
@@ -400,18 +390,64 @@ def accept_product_rent(request, product_variant_id):
             return redirect(reverse("Wsports:profile"))
         else:
             print(form.errors)
-    raise Http404("<h1>Упс, этой страницы не существует. <a href='/'>Перейти на главную</a></h1>")
+
+        raise Http404("<h1>Упс, этой страницы не существует. <a href='/'>Перейти на главную</a></h1>")
 
 
-def handler404(request, exception):
-    raise Http404("<h1>Упс, этой страницы не существует. <a href='/'>Перейти на главную</a></h1>")
+# def accept_product_rent(request, product_variant_id):
+#     if request.method == "POST":
+#         form = ProductRentForm(request.POST)
+#         if form.is_valid():
+#             rent = form.save(commit=False)
+#             rent.customer = request.user
+#             rent.product_variant = ProductVariant.objects.get(id=product_variant_id)
+#             rent.save()
+#             return redirect(reverse("Wsports:profile"))
+#         else:
+#             print(form.errors)
+#     raise Http404("<h1>Упс, этой страницы не существует. <a href='/'>Перейти на главную</a></h1>")
+
+class Handler404View(View):
+    def get(self, request, exception):
+        raise Http404("<h1>Упс, этой страницы не существует. <a href='/'>Перейти на главную</a></h1>")
 
 
-def delete_address(request, address_id):
-    Address.objects.get(id=address_id).delete()
-    return redirect(reverse("Wsports:profile"))
-# TODO: в шаблоне чекаута переделать вывод заказанного количества товаров - все остальное работает корректно
-# TODO: на странице продукта выводить атрибуты со значениями для данного продукта
+# def handler404(request, exception):
+#     raise Http404("<h1>Упс, этой страницы не существует. <a href='/'>Перейти на главную</a></h1>")
+
+
+class DeleteAddressView(View):
+    def get(self, request, address_id):
+        Address.objects.get(id=address_id).delete()
+        return redirect(reverse("Wsports:profile"))
+
+
+class FindWeatherForecastView(View):
+    def post(self, request):
+        form = CityForm(request.POST)
+        if form.is_valid():
+            headers = {"X-Gismeteo-Token": "60ec4d1a90ce50.75601666"}
+            response = requests.get(f'https://api.gismeteo.net/v2/search/cities/?query={form.cleaned_data["city"]}',
+                                    headers=headers)
+            city_data = response.json()
+
+            if city_data["meta"]["code"] == "200":
+                city_id = city_data["response"]["items"][0]["id"]
+                weather_response = requests.get(
+                    f'https://api.gismeteo.net/v2/weather/forecast/aggregate/{city_id}/?days={10}',
+                    headers=headers)
+                weather_data = weather_response.json()
+
+                if weather_data['meta']['code'] == "200":
+                    sum_temperature = 0
+
+                    for data in weather_data["response"]:
+                        sum_temperature += data["temperature"]["air"]["avg"]["C"]
+
+                    avg_temperature_for_ten_days = sum_temperature / len(weather_data["response"])
+
+        return redirect('/')
+# def delete_address(request, address_id):
+#     Address.objects.get(id=address_id).delete()
+#     return redirect(reverse("Wsports:profile"))
 # TODO: взять сторонний сервис с погодой для рекомендаций продуктов
-
-

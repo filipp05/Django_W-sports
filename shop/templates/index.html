@@ -3,6 +3,10 @@
     {% block title %}Wsports: товары для зимнего спорта {% endblock %}
 
 {% block content %}    <style>
+        #gismeteo-logo{
+            width: 10%;
+        }
+
         .base {
             background: #FFFFFF;
         }
@@ -37,6 +41,16 @@
     <div class="last-added mt-5" align="center"><b>Последние добавленные товары</b></div>
     <div class="container">
         {% include 'product_list.html' %}
+        <div class="row">
+            <div class="col">
+                <h2>Подобрать инвентарь по погоде <a href="https://www.gismeteo.ru/"><img id="gismeteo-logo" src="https://logos-download.com/wp-content/uploads/2019/11/Gismeteo_Logo.png" alt="Gismeteo"></a></h2>
+                <form action="{% url 'Wsports:find_weather_forecast_url' %}" method="POST">
+                    {% csrf_token %}
+                    {{ city_form.as_p }}
+                    <input type="submit" value="Подобрать">
+                </form>
+            </div>
+        </div>
         <div class="row"><div class="col" align="center"><h2>Категории</h2></div></div>
         <div class="row mb-5">
             {% for category in category_list %}

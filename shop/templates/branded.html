@@ -16,12 +16,16 @@
         <h1>{{ current_brand }}</h1>
         <p>{{ current_brand.description }}</p>
         <p>Доступные категории: </p>
-        <ul class="list-group">
-        {% for product in brand_product_list %}
-            <li class="list-group-item">{{ product.categories }}</li> {% comment %} переделать {% endcomment %}
+        {% for category in category_list %}
+        <a href="{% url 'Wsports:category_url' category.name %}">
+            <button type="button" class="btn btn-secondary" data-container="body" data-toggle="popover" data-placement="top" data-content="Vivamus sagittis lacus vel augue laoreet rutrum faucibus.">
+                {{ category.name }}
+            </button>
+        </a>
+
         {% endfor %}
         </ul>
-        {% include 'product_list.html' %}
+        {% include 'product_list.html' with product_list=current_brand.product_set.all %}
     </div>
 </div>
 {% endblock %}
