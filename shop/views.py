@@ -425,6 +425,7 @@ class DeleteAddressView(View):
 class FindWeatherForecastView(View):
     def post(self, request):
         form = CityForm(request.POST)
+
         if form.is_valid():
             headers = {"X-Gismeteo-Token": "60ec4d1a90ce50.75601666"}
             response = requests.get(f'https://api.gismeteo.net/v2/search/cities/?query={form.cleaned_data["city"]}',
@@ -440,11 +441,24 @@ class FindWeatherForecastView(View):
 
                 if weather_data['meta']['code'] == "200":
                     sum_temperature = 0
+                    sum_humidity = 0  # влажность
+                    sum_cloudiness = 0
+                    sum_precipitation = 0  # осадки
+                    sum_wind = 0
 
                     for data in weather_data["response"]:
                         sum_temperature += data["temperature"]["air"]["avg"]["C"]
+                        sum_humidity += data["humidity"]["percent"]["avg"]
+                        sum_cloudiness += data["cloudiness"]["percent"]
+                        sum_precipitation += data["precipitation"]["amount"]
+                        sum_wind += (data["wind"]["speed"]["min"]["m_s"] + data["wind"]["speed"]["max"]["m_s"]) / 2
+                        print(data["cloudiness"]["percent"])  # ???????
 
                     avg_temperature_for_ten_days = sum_temperature / len(weather_data["response"])
+                    avg_humidity_percent_for_ten_days = sum_humidity / len(weather_data["response"])
+                    avg_cloudiness_percent_for_ten_days = sum_cloudiness / len(weather_data["response"])
+                    avg_precipitation_mm_for_ten_days = sum_precipitation / len(weather_data["response"])
+                    avg_wind_m_s_for_ten_days = sum_wind / len(weather_data["response"])  # Для средних значений выдается null
 
         return redirect('/')
 # def delete_address(request, address_id):
