@@ -7,8 +7,9 @@ from django.shortcuts import render, redirect, reverse
 from django.views import View
 
 from .models import Product, Category, Brand, Customer, Cart, Order, Address, ShippingMethod, PaymentMethod, \
-    ProductAttribute, ProductVariant, AttributeValue, VariantsAttributeValue, Rent
-from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm, ProductRentForm, CityForm
+    ProductAttribute, ProductVariant, AttributeValue, VariantsAttributeValue, Rent, ProductAttributeValue
+from .forms import ProductForm, CustomerForm, AddressForm, CheckoutForm, ProductRentForm, CityForm, CoordsForm, \
+    SearchForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
 from django.forms import formset_factory, modelformset_factory
@@ -26,10 +27,11 @@ class IndexView(View):
         category_list = Category.objects.all()
         brand_list = Brand.objects.only('name', 'description').all()
         print(brand_list.query, latest_product_list.query)
-        form = CityForm()
+        form = CoordsForm()
+        search_form = SearchForm()
         return render(request, 'index.html',
                       {'category_list': category_list, 'brand_list': brand_list, 'product_list': latest_product_list,
-                       "city_form": form})
+                       "coords_form": form, "search_form": search_form})
 
 
 class BrandProductsView(View):
@@ -272,8 +274,6 @@ class PaymentSuccessView(LoginRequiredMixin, View):
 
         return redirect(reverse("Wsports:order_finish_url"))
 
-
-class PaymentSuccessView(LoginRequiredMixin, View):
     def post(self, request):
         return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
 
@@ -309,12 +309,6 @@ class OrderFinishView(View):
 
 
 class PaymentFailureView(LoginRequiredMixin, View):
-    def get(self, request):
-        inv_order_num = request.GET["InvId"]
-        return render(request, 'payment_failure.html', {'order': inv_order_num})
-
-
-class PaymentFailure(LoginRequiredMixin, View):
     def post(self, request):
         return render(request, 'success.html', {'error': 'Что-то пошло не по плану с оплатой'})
 
@@ -379,9 +373,10 @@ class RentProductView(View):
         return render(request, "rent.html", {"variant": variant, "form": form})
 
 
-class AcceptProductRentView(View):
+class AcceptProductRentView(View):  # TODO: посмотреть, что не так...
     def post(self, request, product_variant_id):
         form = ProductRentForm(request.POST)
+
         if form.is_valid():
             rent = form.save(commit=False)
             rent.customer = request.user
@@ -424,44 +419,193 @@ class DeleteAddressView(View):
 
 class FindWeatherForecastView(View):
     def post(self, request):
-        form = CityForm(request.POST)
+        form = CoordsForm(request.POST)
 
         if form.is_valid():
+            #  Ищем название города
+            city_response = requests.get(f"https://geocode-maps.yandex.ru/1.x?geocode={form.cleaned_data['longitude']}"
+                                     f",{form.cleaned_data['latitude']}&apikey=f35e0eea-4ac4-4e47-8b7a-dcc5104fcfa3"
+                                     f"&kind=locality&"
+                                     f"format=json&"
+                                     f"lang=ru_RU")
+
+            print(city_response.json())
+
+            geo_members = city_response.json()["response"]["GeoObjectCollection"]["featureMember"]
+
+            category = {"name": "Подходящие товары",
+                        "description": "Данные товары были подобраны по данным сервиса Gismeteo"}
+
+            if len(geo_members) == 0:
+                return render(request, 'categorical.html', {'product_list': [],
+                                                            'current_category': category,
+                                                            "city_name": "Невозможно определить ближайший населенный пункт",
+                                                            "min_temperature": None,
+                                                            "max_temperature": None,
+                                                            "min_humidity": None,
+                                                            "max_humidity": None,
+                                                            "min_cloudiness": None,
+                                                            "max_cloudiness": None})
+
+            city_name = city_response.json()["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["metaDataProperty"]["GeocoderMetaData"]["text"]
+            print(city_name)
+
             headers = {"X-Gismeteo-Token": "60ec4d1a90ce50.75601666"}
-            response = requests.get(f'https://api.gismeteo.net/v2/search/cities/?query={form.cleaned_data["city"]}',
-                                    headers=headers)
-            city_data = response.json()
 
-            if city_data["meta"]["code"] == "200":
-                city_id = city_data["response"]["items"][0]["id"]
-                weather_response = requests.get(
-                    f'https://api.gismeteo.net/v2/weather/forecast/aggregate/{city_id}/?days={10}',
-                    headers=headers)
-                weather_data = weather_response.json()
+            weather_response = requests.get(
+                f'https://api.gismeteo.net/v2/weather/forecast/aggregate/?latitude={form.cleaned_data["latitude"]}&longitude={form.cleaned_data["longitude"]}&days=10',
+                headers=headers)
+            weather_data = weather_response.json()
 
-                if weather_data['meta']['code'] == "200":
-                    sum_temperature = 0
-                    sum_humidity = 0  # влажность
-                    sum_cloudiness = 0
-                    sum_precipitation = 0  # осадки
-                    sum_wind = 0
+            sum_temperature = 0
+            min_temperature = 100
+            max_temperature = -100
 
-                    for data in weather_data["response"]:
-                        sum_temperature += data["temperature"]["air"]["avg"]["C"]
-                        sum_humidity += data["humidity"]["percent"]["avg"]
-                        sum_cloudiness += data["cloudiness"]["percent"]
-                        sum_precipitation += data["precipitation"]["amount"]
-                        sum_wind += (data["wind"]["speed"]["min"]["m_s"] + data["wind"]["speed"]["max"]["m_s"]) / 2
-                        print(data["cloudiness"]["percent"])  # ???????
+            sum_humidity = 0  # влажность
+            min_humidity = 101
+            max_humidity = -101
 
-                    avg_temperature_for_ten_days = sum_temperature / len(weather_data["response"])
-                    avg_humidity_percent_for_ten_days = sum_humidity / len(weather_data["response"])
-                    avg_cloudiness_percent_for_ten_days = sum_cloudiness / len(weather_data["response"])
-                    avg_precipitation_mm_for_ten_days = sum_precipitation / len(weather_data["response"])
-                    avg_wind_m_s_for_ten_days = sum_wind / len(weather_data["response"])  # Для средних значений выдается null
+            sum_cloudiness = 0
+            min_cloudiness = 1000  # переделать на тип облачности
+            max_cloudiness = -1000
+
+            sum_precipitation = 0  # осадки
+            sum_wind = 0
+            # Искать максимальное и минимальное значения вместо суммы
+            # TODO: доделать алгоритм с влажность и осадками
+
+            for data in weather_data["response"]:
+                sum_temperature += data["temperature"]["air"]["avg"]["C"]
+
+                if min_temperature > data["temperature"]["air"]["min"]["C"]:
+                    min_temperature = data["temperature"]["air"]["min"]["C"]
+
+                if max_temperature < data["temperature"]["air"]["max"]["C"]:
+                    max_temperature = data["temperature"]["air"]["max"]["C"]
+
+                if min_cloudiness > data["cloudiness"]["type"]:
+                    min_cloudiness = data["cloudiness"]["type"]
+
+                if max_cloudiness < data["cloudiness"]["type"]:
+                    if data["cloudiness"]["type"] == 101:
+                        if max_cloudiness < 2:
+                            max_cloudiness = 2
+                    else:
+                        max_cloudiness = data["cloudiness"]["type"]
+
+                if min_humidity > data["humidity"]["percent"]["min"]:
+                    min_humidity = data["humidity"]["percent"]["min"]
+
+                if max_humidity < data["humidity"]["percent"]["max"]:
+                    max_humidity = data["humidity"]["percent"]["max"]
+
+                sum_humidity += data["humidity"]["percent"]["avg"]
+                sum_cloudiness += data["cloudiness"]["type"] if data["cloudiness"]["type"] != 101 else 2
+                sum_precipitation += data["precipitation"]["amount"]
+                sum_wind += (data["wind"]["speed"]["max"]["m_s"] + data["wind"]["speed"]["min"]["m_s"]) / 2
+                  # ???????
+
+                # if max_cloudiness == 101:
+                #     max_cloudiness = 2,5
+
+            avg_temperature_for_ten_days = sum_temperature / len(weather_data["response"])
+            avg_humidity_percent_for_ten_days = sum_humidity / len(weather_data["response"])
+            avg_cloudiness_percent_for_ten_days = sum_cloudiness / len(weather_data["response"])
+            avg_precipitation_mm_for_ten_days = sum_precipitation / len(weather_data["response"])
+            avg_wind_m_s_for_ten_days = sum_wind / len(
+                weather_data["response"])  # Для средних значений выдается null
+
+            print(min_temperature, max_temperature, "temperature")
+            print(min_cloudiness, max_cloudiness, "cloudiness")
+            print(avg_wind_m_s_for_ten_days, "wind")
+
+            cloudiness_names = ["Ясно", "Малооблачно", "Облачно", "Пасмурно"]
+            print(avg_cloudiness_percent_for_ten_days)
+            cloudiness_name = cloudiness_names[round(avg_cloudiness_percent_for_ten_days) - 1]
+
+
+            # query = Q() query.add(Q(attribute_values__attribute__name="Минимальная температура",
+            # attribute_values__float_value__lte=min_temperature), Q.AND)
+
+            proper_products = \
+                Product.objects.filter \
+                        (
+                        attribute_values__attribute__name="Минимальная температура",
+                        attribute_values__float_value__lte=min_temperature
+                    ) \
+                    .filter \
+                        (
+                        attribute_values__attribute__name="Максимальная температура",
+                        attribute_values__float_value__gte=max_temperature
+                    )
+            proper_products = proper_products.union(Product.objects.filter \
+                    (
+                    attribute_values__attribute__name="Минимальная облачность",
+                    attribute_values__float_value__lte=min_cloudiness
+                ) \
+                .filter \
+                    (
+                    attribute_values__attribute__name="Максимальная облачность",
+                    attribute_values__float_value__gte=max_cloudiness
+                )
+            )
+
+            proper_products = proper_products.union(Product.objects.filter \
+                    (
+                    attribute_values__attribute__name="Минимальная влажность",
+                    attribute_values__float_value__lte=min_humidity
+                ) \
+                .filter \
+                    (
+                    attribute_values__attribute__name="Максимальная влажность",
+                    attribute_values__float_value__gte=max_humidity
+                )
+            )
+
+            if avg_wind_m_s_for_ten_days > 10:
+                proper_products = proper_products.union(Product.objects.filter \
+                    (
+                        attribute_values__attribute__name="Ветрозащита"
+                    )
+                )
+
+            # query.add(Q(attribute_values__attribute__name="Максимальная температура",
+            # attribute_values__float_value__gte=max_temperature), Q.AND)
+            #
+            # proper_products.filter(query)
+
+
+
+            return render(request, 'categorical.html', {'product_list': proper_products,
+                                                        'current_category': category,
+                                                        "city_name": city_name,
+                                                        "min_temperature": min_temperature,
+                                                        "max_temperature": max_temperature,
+                                                        "min_humidity": min_humidity,
+                                                        "max_humidity": max_humidity,
+                                                        "avg_cloudiness": avg_cloudiness_percent_for_ten_days * 25,
+                                                        "cloudiness_name": cloudiness_name})
 
         return redirect('/')
-# def delete_address(request, address_id):
-#     Address.objects.get(id=address_id).delete()
-#     return redirect(reverse("Wsports:profile"))
-# TODO: взять сторонний сервис с погодой для рекомендаций продуктов
+
+
+class SearchForProducts(View):
+    def get(self, request):
+        form = SearchForm(request.GET)
+
+        if form.is_valid():
+            search_name = form.cleaned_data["request_string"]
+
+            proper_products = Product.objects.filter(Q(name__icontains=search_name)
+                                                     | Q(description__icontains=search_name)
+                                                     | Q(brand__name__icontains=search_name)
+                                                     | Q(categories__name__icontains=search_name))
+
+            category = {"name": f"Продукты, соответствующие запросу {search_name}"}
+
+            return render(request, "categorical.html", {"current_category": category,
+                                                        'product_list': proper_products})
+        print(form.errors)
+
+
+

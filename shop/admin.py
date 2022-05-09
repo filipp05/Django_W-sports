@@ -58,6 +58,11 @@ class ProductAdmin(admin.ModelAdmin):
     exclude = ('tags', 'recommendations')
     inlines = (InlineProductPhoto, InlineTag, InlineProductAttributeValue, InlineProductRecommendations, )
 
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        if not change:
+            form.instance.add_attributes()
+
     # def change_view(self, request, object_id, form_url='', extra_context=None):
     #     product = Product.objects.get(id=object_id)
     #     attributes = product.attributes.all()

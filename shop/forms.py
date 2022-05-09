@@ -152,6 +152,11 @@ class ProductRentForm(forms.ModelForm):
         fields = ("duration", "rules_acception")
 
 
+class CoordsForm(forms.Form):
+    latitude = forms.FloatField(widget=forms.HiddenInput())
+    longitude = forms.FloatField(widget=forms.HiddenInput())
+
+
 # class InlineVariantAttributeValueForm(InlineProductAttributeValueForm):
 #     # count = forms.IntegerField(min_value=0)
 #
@@ -162,3 +167,7 @@ class ProductRentForm(forms.ModelForm):
 
 class CityForm(forms.Form):
     city = forms.CharField()
+
+
+class SearchForm(forms.Form):
+    request_string = forms.CharField(widget=forms.TextInput(attrs={"class": "form-control mr-sm-2"}), label="")

@@ -41,14 +41,11 @@ class Product(models.Model):
     def __str__(self):
         return str(self.name)
 
-    def save(self, *args, **kwargs):
-        created = not self.pk
-        super(Product, self).save(*args, **kwargs)
+    def add_attributes(self, *args, **kwargs):
         attribute_list = ProductAttribute.objects.filter(categories__in=self.categories.all())
-        if created:
-            for attribute in attribute_list:
-                if not attribute.is_choosable:
-                    ProductAttributeValue.objects.create(product=self, attribute=attribute)
+        for attribute in attribute_list:
+            if not attribute.is_choosable:
+                ProductAttributeValue.objects.create(product=self, attribute=attribute)
 
     class Meta:
         verbose_name = "товар"
@@ -311,6 +308,7 @@ class PaymentMethod(models.Model):
 
 
 class Rent(models.Model):
+    """Модель аренды"""
     class RentStatus(models.TextChoices):
         paid = "PAD", "Оплачено"
         using = "USG", "В использовании"

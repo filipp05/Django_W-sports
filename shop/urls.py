@@ -14,7 +14,7 @@ urlpatterns = [
     path('accounts/profile/', views.ProfileView.as_view(), name='profile'),
     path('accounts/register/', views.RegisterView.as_view(), name='register'),
     path('add_to_cart/<int:product_id>', views.AddToCartView.as_view(), name='add_to_cart_url'),
-    path('cart/delete/<int:product_variant_id>/', views.DeleteAddressView.as_view(), name='product_delete_url'),
+    path('cart/delete/<int:product_variant_id>/', views.DeleteFromCartView.as_view(), name='product_delete_url'),
     path('cart/', views.CartView.as_view(), name='cart_url'),
     path('shipping_and_payment/', views.ShippingAndPaymentView.as_view(), name='shipping_and_payment_url'),
     path('change_count/<int:product_variant_id>/<str:count>/', views.ChangeCountView.as_view(), name='change_count_url'),
@@ -28,7 +28,8 @@ urlpatterns = [
     path('rent/<int:product_variant_id>/', views.AcceptProductRentView.as_view(), name="rent_acception_url"),
     path('order_finish/', views.OrderFinishView.as_view(), name="order_finish_url"),
     path('delete_address/<int:address_id>/', views.DeleteAddressView.as_view(), name="delete_address_url"),
-    path('find_weather_forecast/', views.FindWeatherForecastView.as_view(), name="find_weather_forecast_url")
+    path('find_weather_forecast/', views.FindWeatherForecastView.as_view(), name="find_weather_forecast_url"),
+    path('search_for_products/', views.SearchForProducts.as_view(), name="search_for_products_url"),
 
 ]
 

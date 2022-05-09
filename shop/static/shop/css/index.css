@@ -1,0 +1,26 @@
+ #gismeteo-logo{
+            width: 10%;
+        }
+
+        .base {
+            background: #FFFFFF;
+        }
+        .last-added {
+            font-size: 25px;
+            }
+
+        h1 {
+            display: block;
+            margin: 20px auto;
+            text-align: center;
+            overflow: hidden;
+            clear: both;
+        }
+
+        .card-brand {
+            height: 330px !important;
+        }
+
+        .card-category{
+            height: 175px !important;
+        }

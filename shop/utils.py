@@ -1,12 +1,15 @@
 from django.db.models import Q, Prefetch, F
 
-from shop.models import VariantsAttributeValue, ProductVariant, Cart
+from .models import VariantsAttributeValue, ProductVariant, Cart
 
 
 def get_product_variant(post_data, product_id):
     data = dict(post_data)
     data.pop('csrfmiddlewaretoken', "")  # выкидываем из словаря токен, чтобы остались только значения атрибутов продуктов
     query = Q()
+
+    if not data:
+        return ProductVariant.objects.filter(product__id=product_id).first()
 
     for key in data:
         try:

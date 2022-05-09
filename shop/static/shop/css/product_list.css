@@ -1,0 +1,21 @@
+.card {
+        height: 430px;
+
+    }
+.detail-btn {
+    position: absolute;
+    bottom: 20px;
+}
+
+.price-text {
+    position: absolute;
+    bottom: 50px;
+    font-weight: bold;
+
+}
+
+ .card img {
+     display: block;
+     width: 80%;
+     margin: 20px auto;
+ }

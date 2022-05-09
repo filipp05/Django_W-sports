@@ -1,27 +1,16 @@
-<style>
-    .card {
-        height: 430px;
+{% load static %}
 
-    }
-    .detail-btn {
-        position: absolute;
-        bottom: 20px;
-    }
-
-    .price-text {
-        position: absolute;
-        bottom: 50px;
-        font-weight: bold;
-    }
-</style>
+{% block styles %}
+    <link rel="stylesheet" href="{% static 'shop/css/product_list.css' %}">
+{% endblock %}
 
 <div class="row my-5">
     {% for product in product_list %}
         {% if forloop.counter0|divisibleby:"3" %}
         </div><div class="row my-5">
         {% endif %}
-        <div class="card col-3 m-auto" style="width: 18rem;">
-            <img src="{{ product.photo.url }}" class="card-img-top" alt="{{ product }}" width="70px" height="100px"/>
+        <div class="card col-3 m-auto" style="width: 18rem; ">
+            <img src="{{ product.photo.url }}" class="card-img-top" alt="{{ product }}" style="max-height: 200px; width: auto;"/>
             <div class="card-body">
                 <h3 class="card-title">{{ product.name|truncatewords:5 }}</h3>
                 {% if product.description %}
@@ -31,5 +20,7 @@
                 <a href="{% url 'Wsports:product_url' product_name=product.name %}" class="btn btn-primary detail-btn">Перейти</a>
             </div>
         </div>
+    {% empty %}
+        <p style="text-align: center; width: 100%">Нет подходящих товаров</p>
     {% endfor %}
 </div>

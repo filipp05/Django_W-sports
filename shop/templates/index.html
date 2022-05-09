@@ -1,41 +1,60 @@
 {% extends 'base.html' %}
+{% load static %}
 
     {% block title %}Wsports: товары для зимнего спорта {% endblock %}
+    {% block styles %}
+        <link rel="stylesheet" href="{% static 'shop/css/index.css' %}">
+    {% endblock %}
+    {% block script%}
+        <script src="https://api-maps.yandex.ru/2.1/?apikey=f35e0eea-4ac4-4e47-8b7a-dcc5104fcfa3&lang=ru_RU" type="text/javascript">
+        </script>
 
-{% block content %}    <style>
-        #gismeteo-logo{
-            width: 10%;
-        }
+        <script type="text/javascript">
+            // Функция ymaps.ready() будет вызвана, когда
+            // загрузятся все компоненты API, а также когда будет готово DOM-дерево.
+            let placemark = null;
+            ymaps.ready(init);
+            function init(){
+                // Создание карты.
+                let myMap = new ymaps.Map("map", {
+                    // Координаты центра карты.
+                    // Порядок по умолчанию: «широта, долгота».
+                    // Чтобы не определять координаты центра карты вручную,
+                    // воспользуйтесь инструментом Определение координат.
+                    center: [55.76, 37.64],
+                    // Уровень масштабирования. Допустимые значения:
+                    // от 0 (весь мир) до 19.
+                    zoom: 7
+                });
 
-        .base {
-            background: #FFFFFF;
-        }
-        .last-added {
-            font-size: 25px;
+                myMap.events.add('click', function(e) {
+                    let coords = e.get('coords');
+                    let lat = document.getElementById("id_latitude");
+                    let lon = document.getElementById("id_longitude");
+                    lat.value = coords[0];
+                    lon.value = coords[1];
+                    if (placemark){
+                        myMap.geoObjects.remove(placemark);
+                    }
+                    placemark = new ymaps.Placemark([coords[0], coords[1]],
+                        {
+                            hintContent: "Выбранное место катания",
+                            balloonContent: "Место катания выбрано"
+                        },
+                        {
+                            iconLayout: "default#image",
+                            iconImageHref: "{% static 'images/skierIcon.png' %}",
+                            iconImageSize: [60, 60]
+                        });
+                myMap.geoObjects.add(placemark);
+                });
+
             }
 
-        .card img{
-            display: block;
-            width: 80%;
-            margin: 20px auto;
-        }
+        </script>
+    {% endblock %}
 
-        h1 {
-            display: block;
-            margin: 20px auto;
-            text-align: center;
-            overflow: hidden;
-            clear: both;
-        }
-
-        .card-brand {
-            height: 330px !important;
-        }
-
-        .card-category{
-            height: 175px !important;
-        }
-    </style>
+{% block content %}
 
     <h1 class="">Wsports: товары для зимнего спорта</h1>
     <div class="last-added mt-5" align="center"><b>Последние добавленные товары</b></div>
@@ -43,12 +62,17 @@
         {% include 'product_list.html' %}
         <div class="row">
             <div class="col">
-                <h2>Подобрать инвентарь по погоде <a href="https://www.gismeteo.ru/"><img id="gismeteo-logo" src="https://logos-download.com/wp-content/uploads/2019/11/Gismeteo_Logo.png" alt="Gismeteo"></a></h2>
+                <h2 style="width: 100%; text-align: center;">Подобрать инвентарь по погоде <a href="https://www.gismeteo.ru/"><img id="gismeteo-logo" src="https://logos-download.com/wp-content/uploads/2019/11/Gismeteo_Logo.png" alt="Gismeteo"></a></h2>
+                <p style="width: 100%; text-align: center;">Выберите точку на карте и нажмите кнопку "Подобрать"</p>
+                <div id="map" style="width: 600px; height: 400px; margin: 40px auto;"></div>
+
                 <form action="{% url 'Wsports:find_weather_forecast_url' %}" method="POST">
                     {% csrf_token %}
-                    {{ city_form.as_p }}
-                    <input type="submit" value="Подобрать">
+                    {{ coords_form.as_p }}
+                    <input type="submit" value="Подобрать" style="display: block; margin: 0 auto;">
                 </form>
+
+
             </div>
         </div>
         <div class="row"><div class="col" align="center"><h2>Категории</h2></div></div>

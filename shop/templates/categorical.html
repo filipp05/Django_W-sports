@@ -5,12 +5,18 @@
             font-size: 25px;
         }
     </style>
-{% block title %}{{ current_category }}{% endblock %}
+{% block title %}{{ current_category.name }}{% endblock %}
 {% block content %}
 <div align="center" class="mt-5">
     <h1 class="category">{{ current_category.name }}</h1><br>
     <div class="mb-5 container">
         <p>{{ current_category.description }}</p>
+        <p>Выбранное место катания: <b>{{ city_name }}</b></p>
+        {% if min_temperature and max_temperature %}
+        <p>Колебания температуры: <b>{{ min_temperature }} <sup>0</sup>C</b> - <b>{{ max_temperature }} <sup>0</sup>C</b> </p>
+        <p>Колебания влажности: {{ min_humidity }}% - {{ max_humidity }}%</p>
+        <p>Облачность: {{ avg_cloudiness }} - {{ cloudiness_name }}%</p>
+        {% endif %}
         {% include 'product_list.html' %}
     </div>
 </div>
