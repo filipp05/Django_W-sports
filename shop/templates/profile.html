@@ -53,7 +53,6 @@
             </div>
             <div class="tab-pane fade hide" id="addresses">
                 <h2 align="center">Адресы</h2>
-                <ul>
                     {% for address in user.address_set.all %}
                     <li>
                         {{ address.city }}, {{ address.street }}, д. {{ address.house }}, кв/оф {{ address.flat }}
