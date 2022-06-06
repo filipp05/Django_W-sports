@@ -8,7 +8,7 @@ SECRET_KEY = '@j9sgq$_elrgl9np-u=n*xvgki6o-wyf71t_r12d56f8r#xmc7'
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["w-sports.ru"]
 
 
 # Application definition

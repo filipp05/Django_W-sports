@@ -25,7 +25,7 @@ class ProductForm(forms.Form):
 
 
 class CustomerForm(forms.ModelForm):
-    password1 = forms.CharField(widget=forms.PasswordInput())
+    password1 = forms.CharField(widget=forms.PasswordInput(), label="Повторите пароль")
 
     def is_valid(self, *args, **kwargs):
         super(CustomerForm, self).is_valid(*args, **kwargs)
