@@ -130,7 +130,9 @@
         {
             let form = document.getElementById("add_to_cart_form");
             form.action = "{% url 'Wsports:rent_product' product_id=product.id %}";
+            form.method = "GET";
             form.submit();
+
 
         }
 
