@@ -21,6 +21,8 @@ from django.http.response import Http404
 from .utils import get_product_variant
 import logging
 
+import urllib
+
 logger = logging.getLogger('src.shop.views')
 
 
@@ -58,6 +60,7 @@ class CategoryProductsView(View):
 class ProductDetailView(View):
     def get(self, request, product_name):
         logger.debug(product_name)
+        product_name = urllib.parse.unquote(product_name)
         product = Product.objects.only('description', 'price', 'name', 'photo', 'brand', 'categories') \
             .select_related('brand') \
             .prefetch_related('recommendations', 'attribute_values', "productvariant_set", "categories") \
