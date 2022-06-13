@@ -82,7 +82,7 @@ class ProductAttribute(models.Model):
         VARIANTS = 'VRT', 'Набор вариантов'
 
     name = models.CharField(verbose_name='Название', max_length=150)
-    categories = models.ManyToManyField('Category', verbose_name='Категория')
+    categories = models.ManyToManyField('Category', verbose_name='Категория', blank=True)
     type = models.CharField(choices=AttributeType.choices, max_length=3)
     is_choosable = models.BooleanField(verbose_name="Выбираемый пользователем?", default=False)
 
