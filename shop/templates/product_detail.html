@@ -126,7 +126,6 @@
 
 </div>
 <h2 align="center">"С этими товарами чаще всего покупают:"</h2>
-{% for product in most_favourite_products %}
     <div class="row my-5">
     {% for product in product.recommendations.all %}
         {% if forloop.counter0|divisibleby:"3" %}
@@ -144,7 +143,6 @@
 
     {% endfor %}
     </div>
-{% endfor %}
     <script>
         function sentRentForm()
         {
