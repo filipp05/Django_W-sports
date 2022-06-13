@@ -95,3 +95,22 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'shop_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join (BASE_DIR,'logs/shop.log'),
+        },
+    },
+    'loggers': {
+        'src.shop.views': {
+            'handlers': ['shop_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
