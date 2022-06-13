@@ -15,7 +15,7 @@
         {% if min_temperature and max_temperature %}
         <p>Колебания температуры: <b>{{ min_temperature }} <sup>0</sup>C</b> - <b>{{ max_temperature }} <sup>0</sup>C</b> </p>
         <p>Колебания влажности: {{ min_humidity }}% - {{ max_humidity }}%</p>
-        <p>Облачность: {{ avg_cloudiness }} - {{ cloudiness_name }}%</p>
+        <p>Облачность: {{ avg_cloudiness }} % - {{ cloudiness_name }}</p>
         {% endif %}
         {% include 'product_list.html' %}
     </div>

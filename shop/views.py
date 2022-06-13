@@ -594,7 +594,7 @@ class FindWeatherForecastView(View):
                                                         "max_temperature": max_temperature,
                                                         "min_humidity": min_humidity,
                                                         "max_humidity": max_humidity,
-                                                        "avg_cloudiness": avg_cloudiness_percent_for_ten_days * 25,
+                                                        "avg_cloudiness": int(avg_cloudiness_percent_for_ten_days * 25),
                                                         "cloudiness_name": cloudiness_name})
 
         return redirect('/')
