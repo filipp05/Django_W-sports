@@ -51,7 +51,7 @@ class InlineProductAttributeValue(admin.TabularInline):
 class InlineProductRecommendations(admin.TabularInline):
     model = Product.recommendations.through
     extra = 0
-    fk_name = 'to_product'
+    fk_name = 'from_product'
 
 
 class ProductAdmin(admin.ModelAdmin):
