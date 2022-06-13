@@ -54,6 +54,7 @@ class CategoryProductsView(View):
 
 class ProductDetailView(View):
     def get(self, request, product_name):
+        print(product_name)
         product = Product.objects.only('description', 'price', 'name', 'photo', 'brand', 'categories') \
             .select_related('brand') \
             .prefetch_related('recommendations', 'attribute_values', "productvariant_set", "categories") \

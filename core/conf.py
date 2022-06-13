@@ -3,7 +3,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-ALLOWED_HOSTS = ["w-sports.ru"]
+ALLOWED_HOSTS = ["w-sports.ru", "127.0.0.1"]
 
 DATABASES = {
     'old': {
