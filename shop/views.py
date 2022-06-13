@@ -41,6 +41,8 @@ class IndexView(View):
 
 class BrandProductsView(View):
     def get(self, request, brand_name):
+
+        brand_name = urllib.parse.unquote(brand_name)
         current_brand = Brand.objects.prefetch_related("product_set").get(name=brand_name)
         # brand_product_list = Product.objects.filter(brand=current_brand)
         brand_categories = Category.objects.filter(product__brand=current_brand).distinct()
@@ -51,6 +53,8 @@ class BrandProductsView(View):
 
 class CategoryProductsView(View):
     def get(self, request, category_name):
+
+        category_name = urllib.parse.unquote(category_name)
         current_category = Category.objects.get(name=category_name)
         category_product_list = Product.objects.filter(categories=current_category)
         return render(request, 'categorical.html', {'product_list': category_product_list,
