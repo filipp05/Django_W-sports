@@ -106,7 +106,9 @@
             </div>
         </div>
     </div>
+    {% if product.recommendations.all.count > 0 %}
     <h2 align="center">К этому товару мы рекомендуем:</h2>
+    {% endif %}
     <div class="row my-5">
     {% for product in product.recommendations.all %}
         {% if forloop.counter0|divisibleby:"3" %}
